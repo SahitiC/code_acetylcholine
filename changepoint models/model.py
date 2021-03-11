@@ -371,20 +371,117 @@ for m in range(len(mu_sArr)):
     ax3.plot(nArrExp, trialTypesExpected[:,2], label = 'mu=%1.2f'%mu_s)
     ax3.set_ylabel('fa rate'); ax3.legend()
 
+
+#%%
+# function for generating trials, inference and resposne for the case when there
+# is a single change point and multiple observations, fixed trial length
+def trial_singleChangePoint(n,mu_s, sigma_s, mu_n, sigma_n,p_signal,trial_type, signal_start_type, signal_length):
+    """
+    Returns the generated trial observations, likelihood measures for the case when the trial length is fixed and a single fixed
+    point marks teh shift in distribution: the change point can occur anywhere in the interval
+    
+    Args:
+        n (scalar): number of observations in the trial 
+        mu_s (scalar): mean of signal distribution
+        sigma_s (scalar): standard deviation of signal distribution
+        mu_n (scalar): mean of non-signal distribution
+        sigma_n (scalar): standard deviation of non-signal distribution
+        p_signal (scalar): probability of the trial being a signal trial
+        trial_type (scalar): whether trial is a non-signal (0), signal(1) or one of them with probability p_signal (2)
+        signal_start_type (scalar): whether signal start point is fixed (0) or random from a uniform distribution (1)
+        signal_length (scalar): length of signal (integer <= n) if signal start point is fixed or if not applicable, is 0
+        
+    Returns:
+        (scalar): trial type (signal/ non-signal)
+        (array): array of underlying signal in the trial
+        (array): array of observations
+        (array): ratio of likelihoods under the two hypotheses at each time point
+        (array): most discrepant cumulative Bayes factor of recent past at each time point
+        (array): run length at each time point
+
+    """
+    
+    if trial_type == 0: trial_signal = 0 #only non-signal trials
+    elif trial_type == 1: trial_signal = 1 #only signal trials
+    elif trial_type == 2: trial_signal = np.random.binomial(1,0.5)  #trial is signal/non signal with prob 0.5 
+    
+    if signal_start_type == 0: start_signal = np.random.randint(0, n) #index of sample when signal begins (on signal trial) 
+    elif signal_start_type == 1: start_signal =  n-signal_length #index of sample when signal begins (on signal trial)
+    
+
+    trial = np.full((int(round(n)),1),0) #signal values within a trial
+    if trial_signal == 1: 
+        trial[start_signal:] = np.full((n-start_signal,1),1)
+
+    observations = np.full((int(round(n)),1),np.nan)
+    for x in range(len(observations)):
+        if trial[x] == 0:
+            observations[x] = np.random.normal(mu_n,sigma_n)
+        elif trial[x] == 1:
+            observations[x] = np.random.normal(mu_s,sigma_s)
+
+    #inference
+    w = np.full((len(observations)+1,1),0.0) #likelihood variable
+    v = np.full((len(observations)+1,1),0.0) #max discrepant likelihood in recent past variable
+    r = np.full((len(observations)+1,1),0.0) #run-length
+    w[0] = 1; v[0] = 1 #initialise
+    for j in range(len(observations)):
+        c = 0;
+        for i in range(j+1):
+            f = np.product(np.exp(mu_s*observations[i:j+1]/(sigma_s**2))) * np.exp((-j+i-1)*(mu_s**2)/(2*sigma_s**2))
+            c = c+f
+        w[j+1] = (c + (n-j-1))/n
+        v[j+1] = w[j+1]*np.max([1,v[j]])/w[j]
+        if v[j] > 1: r[j+1] = r[j]+1
+        elif v[j] <= 1: r[j+1] = 1 
+
+    return trial_signal, trial, observations, w,v,r
+
+def response_singleChangePoint(trial_signal, trial, observations,statistic,threshold):
+    """
+        trial_signal: trial type (signal/ non-signal)
+        trial: array of underlying signal in the trial
+        observations: array of observations
+        statistic: variable based on which decision should be made
+        threshold: threshold on the test statistic
+        
+        (scalar): choice based on decision rule
+        (scalar): whether the trial is a hit
+        (scalar): whether the trial is a miss
+        (scalar): whether the trial is a cr
+        (scalar): whether the trial is a fa
+    """
+    response = 2;
+    hit = 0; miss = 0; cr = 0; fa = 0
+    if statistic[len(observations)] > threshold:
+        response = 1; 
+        if trial_signal == 1: hit = hit+1
+        elif trial_signal == 0: fa = fa+1
+    elif statistic[len(observations)] < threshold: 
+        response = 0
+        if trial_signal == 1: miss = miss+1
+        elif trial_signal == 0: cr = cr+1
+            
+    return response, hit, miss, cr, fa
+
 #%%
 
-#generative model, critical value for seq inference : 1 change point and multiple observations
+#finding critical value (threshold) for the statistic : sequential inference 1 change point and multiple observations
 
-#nArr = np.arange(1,1000,10) #array of trial lengths 
-#[1,5,10,25,50,75,100]
-nArr = [1,5,10,25,50,75,100]
-nTrials = 2000 #no. of trials for each ITU
+nArr = [1,5,10,25,50,75,100] #array of trial lengths
+nTrials = 2000 #no. of trials for each trial length
 mu_s = 1; sigma_s = 1; #mean and std dev of signal distribution
 mu_n = 0; sigma_n = 1; #mean and std dev of non-signal distribution
-vHist = np.full((nTrials,1),0.0)
-wHist = np.full((nTrials,1),0.0)
+p_signal = 0.5 # probability of a signal trial
+
+vHist = np.full((nTrials,1),0.0) #histogram of the statistic v
+wHist = np.full((nTrials,1),0.0) #histogram of the statistic w
 thresholdArr = np.full((len(nArr),1),0.0) #array of thresholds for each value of n
 thresholdArrW = np.full((len(nArr),1),0.0) #array of thresholds for each value of n
+
+trial_type = 0 # only non-signal trials to get distribution under H0
+signal_start_type = 0 #variable signal lengths
+signal_length = 0 #unused variable
 
 start = time.perf_counter()
 for y in range(len(nArr)):
@@ -392,224 +489,194 @@ for y in range(len(nArr)):
     for z in range(nTrials):    
         n = nArr[y]; #no. of samples (trial length)
         
-        trial_signal = 0 #under H0
-        start_signal = np.random.randint(0, n) #index of sample when signal begins (on signal trial)
-        
-        trial = np.full((int(round(n)),1),0);#signal values within a trial
-        if trial_signal == 1: 
-            trial[start_signal:] = np.full((n-start_signal,1),1)
-        
-        X = np.full((int(round(n)),1),np.nan)
-        for x in range(len(X)):
-            if trial[x] == 0:
-                X[x] = np.random.normal(mu_n,sigma_n)
-            elif trial[x] == 1:
-                X[x] = np.random.normal(mu_s,sigma_s)
-                
-        #inference and response
-        w = np.full((len(X)+1,1),0.0)
-        v = np.full((len(X)+1,1),0.0)
-        w[0] = 1; v[0] = 1
-        for j in range(len(X)):
-            c = 0;
-            for i in range(j+1):
-                f = np.product(np.exp(mu_s*X[i:j+1]/(sigma_s**2))) * np.exp((-j+i-1)*(mu_s**2)/(2*sigma_s**2))
-                c = c+f
-            w[j+1] = (c + (n-j-1))/n
-            v[j+1] = w[j+1]*np.max([1,v[j]])/w[j]
+        trial_signal, trial, observations, w,v,r = trial_singleChangePoint(n,mu_s, sigma_s, mu_n, 
+                                    sigma_n,p_signal,trial_type, signal_start_type, signal_length)
                 
         
-        vHist[z,0] = v[len(X)]
-        wHist[z,0] = w[len(X)]
+        vHist[z,0] = v[len(observations)]
+        wHist[z,0] = w[len(observations)]        
     
     thresholdArr[y,0] = np.quantile(vHist,0.95)
     thresholdArrW[y,0] = np.quantile(wHist,0.95)
-
-    
+  
 print(time.perf_counter()-start)
+
+#%%
+#example run of a trial
+mu_s = 1; sigma_s = 1; #mean and std dev of signal distribution
+mu_n = 0; sigma_n = 1; #mean and std dev of non-signal distribution
+n = 10 #no. of samples
+p_signal = 0.5 #prob of signal trial
+trial_type = 2; signal_start_type = 0; signal_length = 5
+trial_signal, trial, observations, w,v,r = trial_singleChangePoint(n,mu_s, sigma_s, mu_n, 
+                                    sigma_n,p_signal,trial_type, signal_start_type, signal_length)
+response, hit, miss, cr, fa = response_singleChangePoint(trial_signal,trial, observations,w, thresholdArrW[2,0])
+
+#plot of result
+plt.plot(trial, label = 'underlying signal'); plt.plot(observations, label = 'observations')
+plt.legend(); plt.figure()
+plt.plot(w[1:], label = 'likelihood ratio'); plt.legend()
+print('response=%d,hit=%d,miss=%d,cr=%d,fa=%d'%(response,hit,miss,cr,fa))
+
+#%%
+#generative model, sequential inference : 1 change point and multiple observations
+#looking at hit rates across trial lengths without controlling for length of signal
+
+#nArr = np.arange(1,1000,10) #array of trial lengths 
+#[1,5,10,25,50,75,100]
+nArr = [1,5,10,25,50,75,100] #array of trial lengths
+nTrials = 2000 #no. of trials for each trial lengths
+
+mu_s = 1; sigma_s = 1; #mean and std dev of signal distribution
+mu_n = 0; sigma_n = 1; #mean and std dev of non-signal distribution
+
+trial_type = 2 # only non-signal trials to get distribution under H0
+signal_start_type = 0 #variable signal lengths
+signal_length = 0 #unused variable
+
+trialTypesSimulated = np.full((len(nArr),5),0.0) #counting rates of h/m/f/c for each trial length $!
+
+start = time.perf_counter()
+for y in range(len(nArr)): 
+    threshold_w = thresholdArrW[y] #!!
+    hit = 0; miss = 0; cr = 0; fa = 0
+    for z in range(nTrials):    
+        n = nArr[y]; #no. of samples (trial length) 
+                
+        trial_signal, trial, observations, w,v,r = trial_singleChangePoint(n,mu_s, sigma_s, mu_n, 
+                                    sigma_n,p_signal,trial_type, signal_start_type, signal_length)
+ 
+        repsonse, hit0, miss0, cr0, fa0 = response_singleChangePoint(trial_signal,trial, observations,w, threshold_w)
+    
+        hit = hit+hit0; miss = miss+miss0; cr = cr+cr0; fa = fa+fa0
+            
+    trialTypesSimulated[y,0] = hit; trialTypesSimulated[y,1] = miss;
+    trialTypesSimulated[y,2] = cr; trialTypesSimulated[y,3] = fa;
+    
+trialTypesSimulated[:,4] = norm.ppf(trialTypesSimulated[:,0]/(
+    trialTypesSimulated[:,0]+trialTypesSimulated[:,1]))-norm.ppf(
+        trialTypesSimulated[:,3]/(trialTypesSimulated[:,2]+trialTypesSimulated[:,3]))
+
+print(time.perf_counter()-start)
+
+#plotting hit rates for different ITU lengths
+plt.plot(nArr, trialTypesSimulated[:,0]/(trialTypesSimulated[:,0]+trialTypesSimulated[:,1]), label = 'hit rate', marker = 'o')
+plt.plot(nArr, trialTypesSimulated[:,3]/(trialTypesSimulated[:,2]+trialTypesSimulated[:,3]), label = 'fa rate', marker = 'o')
+plt.plot(nArr, trialTypesSimulated[:,4], label = 'd-prime', marker = 'o')
+plt.xlabel('ITU length'); plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
 
 
 #%%
 #generative model, sequential inference : 1 change point and multiple observations
+#looking at hitrates across isgnal durations
 
-#nArr = np.arange(1,1000,10) #array of trial lengths 
-#[1,5,10,25,50,75,100]
-nArr = [1,5,10,25,50]
-signal_lengthArr =[1,3,5,10,15,25,35,50,75] #! 
-#[1,3,5,10,15,25,35,50,75,100]
-nTrials = 2000 #no. of trials for each ITU
+signal_lengthArr =[1,3,5,10,15,25,35,50,75] #signal length [1,3,5,10,15,25,35,50,75,100]
+nArr = [1,5,10,25,50] #array of trial lengths 1,5,10,25,50,75,100
+nTrials = 2000 #no. of trials for each trial lengths
+
 mu_s = 1; sigma_s = 1; #mean and std dev of signal distribution
 mu_n = 0; sigma_n = 1; #mean and std dev of non-signal distribution
-trialTypesSimulated = np.full((len(nArr),len(signal_lengthArr),5),0.0) #counting rates of h/m/f/c for each trial length $!
-trialTypesSimulatedW = np.full((len(nArr),len(signal_lengthArr),5),0.0) #counting rates of h/m/f/c for each trial length $!
 
+trial_type = 2 # signal and non-signal trials
+signal_start_type = 1 #constant signal lengths
+
+trialTypesSimulatedV = np.full((len(nArr),len(signal_lengthArr),5),0.0) #counting rates of h/m/f/c for each trial length 
+trialTypesSimulatedW = np.full((len(nArr),len(signal_lengthArr),5),0.0) #counting rates of h/m/f/c for each trial length 
+trialFinalW = np.full((len(nArr),len(signal_lengthArr),4),np.nan) #final value of W for each n, r, for hits, cr, miss, fa
 
 start = time.perf_counter()
-for l in range(len(nArr)):
-    n = nArr[l]
-    threshold_v = thresholdArr[l] #!
-    threshold_w = thresholdArrW[l]
-    y=0
-    while signal_lengthArr[y] <= n : #!
-        hit = 0; miss = 0; cr = 0; fa = 0
-        hitW = 0; missW = 0; crW = 0; faW = 0
-        for z in range(nTrials):    
-            
-            trial_signal = np.random.binomial(1,0.5)  #trial is signal/non signal with prob 0.5 
-            start_signal = n-signal_lengthArr[y] #index of sample when signal begins (on signal trial)
-            
-            trial = np.full((int(round(n)),1),0);#signal values within a trial
-            if trial_signal == 1: 
-                trial[start_signal:] = np.full((n-start_signal,1),1)
-            
-            X = np.full((int(round(n)),1),np.nan)
-            for x in range(len(X)):
-                if trial[x] == 0:
-                    X[x] = np.random.normal(mu_n,sigma_n)
-                elif trial[x] == 1:
-                    X[x] = np.random.normal(mu_s,sigma_s)
-                    
-            #inference and response
-            w = np.full((len(X)+1,1),0.0)
-            v = np.full((len(X)+1,1),0.0)
-            r = np.full((len(X)+1,1),0.0)
-            w[0] = 1; v[0] = 1
-            for j in range(len(X)):
-                c = 0;
-                for i in range(j+1):
-                    f = np.product(np.exp(mu_s*X[i:j+1]/(sigma_s**2))) * np.exp((-j+i-1)*(mu_s**2)/(2*sigma_s**2))
-                    c = c+f
-                w[j+1] = (c + (n-j-1))/n
-                v[j+1] = w[j+1]*np.max([1,v[j]])/w[j]
-                if v[j] > 1: r[j+1] = r[j]+1
-                elif v[j] <= 1: r[j+1] = 1 
-            
-            response = 2; 
-            if v[len(X)] > threshold_v:
-                response = 1; 
-                if trial_signal == 1: hit = hit+1
-                elif trial_signal == 0: fa = fa+1
-            elif v[len(X)] < threshold_v: 
-                response = 0
-                if trial_signal == 1: miss = miss+1
-                elif trial_signal == 0: cr = cr+1
-                
-            responseW = 2; 
-            if w[len(X)] > threshold_w:
-                responseW = 1; 
-                if trial_signal == 1: hitW = hitW+1
-                elif trial_signal == 0: faW = faW+1
-            elif w[len(X)] < threshold_w: 
-                responseW = 0
-                if trial_signal == 1: missW = missW+1
-                elif trial_signal == 0: crW = crW+1
-                
-        trialTypesSimulated[l,y,0] = hit; trialTypesSimulated[l,y,1] = miss;
-        trialTypesSimulated[l,y,2] = cr; trialTypesSimulated[l,y,3] = fa;
 
+for l in range(len(nArr)):
+    n = nArr[l] #lenght of trial
+    threshold_v = thresholdArr[l] #!
+    threshold_w = thresholdArrW[l] #!
+    y = 0;
+    while signal_lengthArr[y] <= n: 
+        signal_length = signal_lengthArr[y]
+        hitV = 0; missV = 0; crV = 0; faV = 0
+        hitW = 0; missW = 0; crW = 0; faW = 0
+        W_n = np.full((1,4),0.0)
+        for z in range(nTrials):    
+
+            trial_signal,trial, observations, w,v,r = trial_singleChangePoint(n,mu_s, sigma_s, mu_n, 
+                                        sigma_n,p_signal,trial_type, signal_start_type, signal_length)
+
+            responseV, hitv0, missv0, crv0, fav0 = response_singleChangePoint(trial_signal,trial, observations,v,threshold_v)
+            responseW, hitw0, missw0, crw0, faw0 = response_singleChangePoint(trial_signal,trial, observations,w,threshold_w)
+
+            hitV = hitV+hitv0; missV = missV+missv0; crV = crV+crv0; faV = faV+fav0
+            hitW = hitW+hitw0; missW = missW+missw0; crW = crW+crw0; faW = faW+faw0
+            
+            if hitw0 == 1: W_n[0,0] = W_n[0,0]+w[n]
+            elif missw0 == 1: W_n[0,1] = W_n[0,1]+w[n]
+            elif crw0 == 1: W_n[0,2] = W_n[0,2]+w[n]
+            elif faw0 == 1: W_n[0,3] = W_n[0,3]+w[n]
+            
+        trialTypesSimulatedV[l,y,0] = hitV; trialTypesSimulatedV[l,y,1] = missV;
+        trialTypesSimulatedV[l,y,2] = crV; trialTypesSimulatedV[l,y,3] = faV;
         trialTypesSimulatedW[l,y,0] = hitW; trialTypesSimulatedW[l,y,1] = missW;
         trialTypesSimulatedW[l,y,2] = crW; trialTypesSimulatedW[l,y,3] = faW;
+        trialFinalW[l,y,0] = W_n[0,0]/trialTypesSimulatedW[l,y,0]; trialFinalW[l,y,1] = W_n[0,1]/trialTypesSimulatedW[l,y,1]
+        trialFinalW[l,y,2] = W_n[0,2]/trialTypesSimulatedW[l,y,2]; trialFinalW[l,y,3] = W_n[0,3]/trialTypesSimulatedW[l,y,3]
         
-
         y = y+1
-        
-    trialTypesSimulated[l,:,4] = norm.ppf(trialTypesSimulated[l,:,0]/(
-        trialTypesSimulated[l,:,0]+trialTypesSimulated[l,:,1]))-norm.ppf(
-            trialTypesSimulated[l,:,3]/(trialTypesSimulated[l,:,2]+trialTypesSimulated[l,:,3]))
 
 print(time.perf_counter()-start)
 
 #%%
-#plotting single trial measures
-fig1, ax1 = plt.subplots(2)
-ax1[0].plot(trial, label = 'underlying signal')
-ax1[0].plot(X, label = 'observations')
-ax1[0].legend(bbox_to_anchor=(1.05, 1), loc='upper left'); 
-ax1[1].axhline(thresholdArr[0], label = 'threshold')
-ax1[1].plot(w[1:], label = 'likelihood ratio')
-ax1[1].plot(v[1:], label = ' discrepant group')
-ax1[1].plot(r[1:], label = 'run length')
-ax1[1].legend(bbox_to_anchor=(1.05, 1), loc='upper left')
-ax1[1].set_xlabel('sample no.')
+#plotting hit rates vs signal lengths for different ITUs but similar signal durations
+for l in range(len(nArr)):
 
-#%%
-#plotting hit rates for different ITU lengths
+    a = trialTypesSimulatedV[l,:,0]/(trialTypesSimulatedV[l,:,0]+trialTypesSimulatedV[l,:,1])
+    plt.plot(signal_lengthArr[:len(trialTypesSimulatedV[l,:,:])],a, marker = 'o', label = 'n=%d'%nArr[l])
+
+plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left'); plt.xlabel('signal duration')
+plt.ylabel('hit rates'); plt.title('based on V_j')
+
+plt.figure()
+
+#plotting hit rates vs signal lengths for different ITUs but similar signal durations
 for l in range(len(nArr)):
 
     a = trialTypesSimulatedW[l,:,0]/(trialTypesSimulatedW[l,:,0]+trialTypesSimulatedW[l,:,1])
     plt.plot(signal_lengthArr[:len(trialTypesSimulatedW[l,:,:])],a, marker = 'o', label = 'n=%d'%nArr[l])
 
-
 plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left'); plt.xlabel('signal duration')
-plt.ylabel('hit rates')
+plt.ylabel('hit rates'); plt.title('based on W_j'); plt.figure()
 
-plt.figure()
-#plotting hit rates for different ITU lengths
-for l in range(len(nArr)):
+#plotting avg W's for hits
+for s in range(len(signal_lengthArr)-3):
 
-    a = trialTypesSimulated[l,:,0]/(trialTypesSimulated[l,:,0]+trialTypesSimulated[l,:,1])
-    plt.plot(signal_lengthArr[:len(trialTypesSimulated[l,:,:])],a, marker = 'o', label = 'n=%d'%nArr[l])
-
-
-plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left'); plt.xlabel('signal duration')
-plt.ylabel('hit rates')
-#%%
-trialTypesSimulated1, trialTypesSimulated5, trialTypesSimulated10, trialTypesSimulated25 = 1
-trialTypesSimulated50, trialTypesSimulated75, trialTypesSimulated100 = 1
-
-#%%
-#plotting hit rates vs signal lengths for different ITUs but similar signal durations
-a = trialTypesSimulated1[:,0]/(trialTypesSimulated1[:,0]+trialTypesSimulated1[:,1])
-plt.scatter(signal_lengthArr[:len(trialTypesSimulated1)],a, label = 'n=1')
-
-a = trialTypesSimulated5[:,0]/(trialTypesSimulated5[:,0]+trialTypesSimulated5[:,1])
-plt.plot(signal_lengthArr[:len(trialTypesSimulated5)],a, label = 'n=5', linestyle = '--', marker = 'o')
-
-a = trialTypesSimulated10[:,0]/(trialTypesSimulated10[:,0]+trialTypesSimulated10[:,1])
-plt.plot(signal_lengthArr[:len(trialTypesSimulated10)],a, label = 'n=10', linestyle = '--', marker = 'o')
-
-a = trialTypesSimulated25[:,0]/(trialTypesSimulated25[:,0]+trialTypesSimulated25[:,1])
-plt.plot(signal_lengthArr[:len(trialTypesSimulated25)],a, label = 'n=25', linestyle = '--', marker = 'o')
-
-a = trialTypesSimulated50[:,0]/(trialTypesSimulated50[:,0]+trialTypesSimulated50[:,1])
-plt.plot(signal_lengthArr[:len(trialTypesSimulated50)],a, label = 'n=50', linestyle = '--', marker = 'o')
-
-a = trialTypesSimulated75[:,0]/(trialTypesSimulated75[:,0]+trialTypesSimulated75[:,1])
-plt.plot(signal_lengthArr[:len(trialTypesSimulated75)],a, label = 'n=75', linestyle = '--', marker = 'o')
-
-a = trialTypesSimulated100[:,0]/(trialTypesSimulated100[:,0]+trialTypesSimulated100[:,1])
-plt.plot(signal_lengthArr[:len(trialTypesSimulated100)],a, label = 'n=100', linestyle = '--', marker = 'o')
-
-plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left'); plt.xlabel('signal duration')
-plt.ylabel('hit rates')
-
-#%%
-sArr  = [0.125, 0.25, 0.5, 1, 1.5, 10]
-for i in range(len(sArr)):
-    rangeX = np.arange(0.0,2.55,0.05)
-    rangeY = lognormalCDF(rangeX, 0, sArr[i])
-    plt.plot(rangeX, rangeY, label = 'sig=%1.3f'%sArr[i])
-plt.legend()
-
-#%%
-typesExpected = np.full((50,len(nArrExp),5),0.0)
-typesSimulated = np.full((50,len(nArr),5),0.0)
-mu_sArray = np.full((50,1),0.0)
-#%%
-for i in range(5):
-    plt.plot(nArr, typesSimulated[i,:,0]/(typesSimulated[i,:,0]+typesSimulated[i,:,1]), 
-             label = 'mu_s=%1.2f'%mu_sArray[i])
-plt.legend(); plt.figure()
-for i in range(5):
-    plt.plot(nArr, typesSimulated[i,:,3]/(typesSimulated[i,:,3]+typesSimulated[i,:,4]), 
-             label = 'mu_s=%1.2f'%mu_sArray[i])
-plt.legend(); plt.figure()
-
+    plt.errorbar(nArr,trialFinalW[:,s,0], marker = 'o',  label = 'signal=%d'%signal_lengthArr[s])
+    
+plt.plot(nArr,thresholdArrW[:5]); 
+plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left'); plt.xlabel('length of trial')
+plt.ylabel('avg W_n on hit trials'); 
 
 #%%
 #fixed r - sequential inference
-def trial_fixedSignal(trial_length,mu_s, sigma_s, mu_n, sigma_n,p_signal,trial_type,
-                      signal_length):
+def trial_fixedSignal(trial_length,mu_s, sigma_s, mu_n, sigma_n,p_signal,trial_type, signal_length):
+    """
+    Returns the generated trial observations for the case when trial length is fixed and so is the size of
+    the signal interval: the signal can occur anywhere in the trial
+    
+    Args:
+        trial_length (scalar): number of observations in the trial 
+        mu_s (scalar): mean of signal distribution
+        sigma_s (scalar): standard deviation of signal distribution
+        mu_n (scalar): mean of non-signal distribution
+        sigma_n (scalar): standard deviation of non-signal distribution
+        p_signal (scalar): probability of the trial being a signal trial
+        trial_type (scalar): whether trial is a non-signal (0), signal(1) or one of them with probability p_signal (2)
+        signal_length (scalar): length of signal (integer <= n) if signal start point is fixed or if not applicable, is 0
+        
+    Returns:
+        (scalar): trial type (signal/ non-signal)
+        (array): array of underlying signal in the trial
+        (array): array of observations
+
+    """
+    
     if trial_type == 0: trial_signal = 0 #only non-signal trials
     elif trial_type == 1: trial_signal = 1 #only signal trials
     elif trial_type == 2: trial_signal = np.random.binomial(1,0.5)  #trial is signal/non signal with prob 0.5 
@@ -633,6 +700,29 @@ def trial_fixedSignal(trial_length,mu_s, sigma_s, mu_n, sigma_n,p_signal,trial_t
 
 def inference_fixedSignal(trial_length,mu_s, sigma_s, mu_n, sigma_n,
                     p_signal,trial_type,signal_length, trial, observations):
+    
+    """
+    Returns the calculated likelihoods (given the observations and parameters) for the case when trial length is fixed 
+    and so is the size of the signal interval: the signal can occur anywhere in the trial
+    
+    Args:
+        trial_length (scalar): number of observations in the trial 
+        mu_s (scalar): mean of signal distribution
+        sigma_s (scalar): standard deviation of signal distribution
+        mu_n (scalar): mean of non-signal distribution
+        sigma_n (scalar): standard deviation of non-signal distribution
+        p_signal (scalar): probability of the trial being a signal trial
+        trial_type (scalar): whether trial is a non-signal (0), signal(1) or one of them with probability p_signal (2)
+        signal_length (scalar): length of signal (integer <= n) if signal start point is fixed or if not applicable, is 0
+        trial (array): array of underlying signal in the trial
+        observations (array): array of observations
+        
+    Returns:
+    
+        (array): ratio of likelihoods under the two hypotheses at each time point
+        (array): most discrepant cumulative Bayes factor of group of (signal length) observations at each time point
+        
+     """
                       
     w = np.full((len(observations)+1,1),0.0) #likelihood variable
     v = np.full((len(observations)+1,1),0.0) #max discrepant likelihood in recent past variable
@@ -686,9 +776,6 @@ def onlineInference_fixedSignal(trial_signal, trial, observations):
         E[j+1] = E[j]*np.exp(A[max(j+1,signal_length)-1])
         C[j+1] = C[j] + E[j+1]
         
-        
-
-        
         c = 0
         for k in range(j+1):
             c = np.max([c, (w[min(k+signal_length,j+1)]/w[k])])
@@ -697,70 +784,97 @@ def onlineInference_fixedSignal(trial_signal, trial, observations):
         
     return w,v
 
-def response_fixedSignal(trial_signal, trial, observations,w,v,threshold):
+def response_fixedSignal(trial_signal, trial, observations,statistic,threshold):
+    
+    """
+    Returns the response (given the decision variable and threshold) for the case when trial length is fixed 
+    and so is the size of the signal interval (which can occur anywhere in the interval)
 
+    Args:
+        trial_signal (scalar): trial type (signal/ non-signal)
+        trial (array): array of underlying signal in the trial
+        observations (array): array of observations
+        statistic (array): statistic/ decision variable calculated at each timepoint
+        threshold (array): threshold against which statistic must be compared
+
+    Returns:
+        (scalar): response obtained based on the decision rule
+        (scalar): whether the trial is a hit (0-no, 1-yes)
+        (scalar): whether the trial is a miss (0-no, 1-yes)
+        (scalar): whether the trial is a correct rejection (0-no, 1-yes)
+        (scalar): whether the trial is a false alarm (0-no, 1-yes)    
+
+    """
+    
     response = 2;
     hit = 0; miss = 0; cr = 0; fa = 0
-    threshold_v = threshold
-    if v[len(observations)] > threshold_v:
+    if statistic[len(observations)] > threshold:
         response = 1; 
         if trial_signal == 1: hit = hit+1
         elif trial_signal == 0: fa = fa+1
-    elif v[len(observations)] < threshold_v: 
+    elif statistic[len(observations)] < threshold: 
         response = 0
         if trial_signal == 1: miss = miss+1
         elif trial_signal == 0: cr = cr+1
-            
+
     return response, hit, miss, cr, fa
 
 #%%
+#single trial simulation
 trial_length = 5
 mu_s = 1; sigma_s = 1; #mean and std dev of signal distribution
 mu_n = 0; sigma_n = 1; #mean and std dev of non-signal distribution
-p_signal = 0.5; # probability of a signal trial
-trial_type = 1; signal_length = 5
+p_signal = 0.5; #probability of a signal trial
+trial_type = 1; signal_length = 4
 
-trial_signal, trial, observations, w,v = trial_fixedSignal(trial_length,mu_s, 
+trial_signal, trial, observations = trial_fixedSignal(trial_length,mu_s, 
    sigma_s, mu_n, sigma_n,p_signal,trial_type,signal_length)
 
-#%%
+w,v = inference_fixedSignal(trial_length,mu_s, sigma_s, mu_n, sigma_n,
+                    p_signal,trial_type,signal_length, trial, observations)
+
 #plot of result
 plt.plot(trial, label = 'underlying signal'); plt.plot(observations, label = 'observations')
 plt.legend(); plt.figure()
 plt.plot(w[1:], label = 'likelihood ratio'); plt.plot(v[1:], label = 'most discrepant')
 plt.legend()
 
-
 #%%
 #finding critical value (threshold) for the statistic : sequential inference,
 #fixed signal length
-signal_lengthArr =[3,5,10,15,25,35,50,75,100,101] #signal length [1,3,5,10,15,25,35,50,75,100,101]
-nArr = [5,10,25,50,75,100] #array of trial lengths  
+signal_lengthArr =[1,3,5,10,15,25,35,50,75] #signal length [1,3,5,10,15,25,35,50,75,100,101]
+nArr = [5,10,25,50] #array of trial lengths  [5,10,25,50,75,100] 
 nTrials = 2000 #no. of trials for each trial length
 mu_s = 1; sigma_s = 1; #mean and std dev of signal distribution
 mu_n = 0; sigma_n = 1; #mean and std dev of non-signal distribution
 p_signal = 0.5 # probability of a signal trial
 trial_type = 0
 
-vHist = np.full((nTrials,1),0.0) #histogram of the statistic
+vHist = np.full((nTrials,1),0.0) #histogram of the statistic V
+wHist = np.full((nTrials,1),0.0) #histogram of the statistic W
 thresholdArr = np.full((len(nArr),len(signal_lengthArr)),0.0)
+thresholdArrW = np.full((len(nArr),len(signal_lengthArr)),0.0)
 #array of thresholds for each value of n
-
 
 start = time.perf_counter()
 for y in range(len(nArr)):
-    n = nArr[y]; #no. of samples (trial length)
+    trial_length = nArr[y]; #no. of samples (trial length)
     s= 0
-    while signal_lengthArr[s] <= n: 
+    while signal_lengthArr[s] <= trial_length: 
         signal_length = signal_lengthArr[s]
         for z in range(nTrials):    
             
-            trial_signal, trial, observations, w,v = trial_fixedSignal(n,mu_s, 
+            trial_signal, trial, observations = trial_fixedSignal(trial_length,mu_s, 
             sigma_s, mu_n, sigma_n,p_signal,trial_type,signal_length)
+            
+            w,v = inference_fixedSignal(trial_length,mu_s, sigma_s, mu_n, sigma_n,
+                    p_signal,trial_type,signal_length, trial, observations)
                     
             vHist[z,0] = v[len(observations)]
+            wHist[z,0] = w[len(observations)]
         
         thresholdArr[y,s] = np.quantile(vHist,0.95)
+        thresholdArrW[y,s] = np.quantile(wHist,0.95)
         s = s+1
   
 print(time.perf_counter()-start)
@@ -770,38 +884,61 @@ print(time.perf_counter()-start)
     
 #nArr = np.arange(1,1000,10) #array of trial lengths 
 #[1,5,10,25,50,75,100]
-signal_lengthArr =[3,5,10,15,25,35,50,75,100] #signal length [1,3,5,10,15,25,35,50,75,100]
-nArr = [5,10,25,50,75] #array of trial lengths 
+signal_lengthArr =[1,3,5,10,15,25,35,50,75] #signal length [1,3,5,10,15,25,35,50,75,100,101]
+nArr = [5,10,25,50] #array of trial lengths [5,10,25,50,75]
 nTrials = 2000 #no. of trials for each trial length
 mu_s = 1; sigma_s = 1; #mean and std dev of signal distribution
 mu_n = 0; sigma_n = 1; #mean and std dev of non-signal distribution
 p_signal = 0.5 # probability of a signal trial
-signal_length = 4; trial_type = 2
+trial_type = 2
 
 trialTypesSimulated = np.full((len(nArr),len(signal_lengthArr),5),0.0) #counting rates of h/m/f/c for each trial length $!
-
+trialTypesSimulatedW = np.full((len(nArr),len(signal_lengthArr),5),0.0) #counting rates of h/m/f/c for each trial length $!
+trialFinalW = np.full((len(nArr),len(signal_lengthArr),4),np.nan) #final value of W for each n, r, for hits, cr, miss, fa
 
 start = time.perf_counter()
 for y in range(len(nArr)):
-    n = nArr[y]; #no. of samples (trial length) 
+    trial_length = nArr[y]; #no. of samples (trial length) 
     s=0
-    while signal_lengthArr[s] <= n: 
+    while signal_lengthArr[s] <= trial_length: 
         signal_length = signal_lengthArr[s]        
         threshold_v = thresholdArr[y,s] #!
+        threshold_w = thresholdArrW[y,s]
         hit = 0; miss = 0; cr = 0; fa = 0
+        hitW = 0; missW = 0; crW = 0; faW = 0
+        W_n = np.full((1,4),0.0)
         for z in range(nTrials):    
                     
-            trial_signal, trial, observations, w,v = trial_fixedSignal(n,mu_s, 
-           sigma_s, mu_n, sigma_n,p_signal,trial_type, signal_length)
+            trial_signal, trial, observations = trial_fixedSignal(trial_length,mu_s, 
+            sigma_s, mu_n, sigma_n,p_signal,trial_type, signal_length)
+            
+            w,v = inference_fixedSignal(trial_length,mu_s, sigma_s, mu_n, sigma_n,
+                    p_signal,trial_type,signal_length, trial, observations)
      
             repsonse, hit0, miss0, cr0, fa0 = response_fixedSignal(trial_signal,
-                                    trial, observations,w,v, threshold_v)
+                                    trial, observations,v, threshold_v)
+        
+            repsonseW, hitW0,missW0, crW0, faW0 = response_fixedSignal(trial_signal,
+                                    trial, observations,w, threshold_w)
         
             hit = hit+hit0; miss = miss+miss0; cr = cr+cr0; fa = fa+fa0
+            hitW = hitW+hitW0; missW = missW+missW0; crW = crW+crW0; faW = faW+faW0
+            
+            if hitW0 == 1: W_n[0,0] = W_n[0,0]+w[trial_length]
+            elif missW0 == 1: W_n[0,1] = W_n[0,1]+w[trial_length]
+            elif crW0 == 1: W_n[0,2] = W_n[0,2]+w[trial_length]
+            elif faW0 == 1: W_n[0,3] = W_n[0,3]+w[trial_length]
+            
                 
         trialTypesSimulated[y,s,0] = hit; trialTypesSimulated[y,s,1] = miss;
         trialTypesSimulated[y,s,2] = cr; trialTypesSimulated[y,s,3] = fa;
         
+        trialTypesSimulatedW[y,s,0] = hitW; trialTypesSimulatedW[y,s,1] = missW;
+        trialTypesSimulatedW[y,s,2] = crW; trialTypesSimulatedW[y,s,3] = faW;
+
+        trialFinalW[y,s,0] = W_n[0,0]/trialTypesSimulatedW[y,s,0]; trialFinalW[y,s,1] = W_n[0,1]/trialTypesSimulatedW[y,s,1]
+        trialFinalW[y,s,2] = W_n[0,2]/trialTypesSimulatedW[y,s,2]; trialFinalW[y,s,3] = W_n[0,3]/trialTypesSimulatedW[y,s,3]
+
         s = s+1
         
     trialTypesSimulated[y,:,4] = norm.ppf(trialTypesSimulated[y,:,0]/(
@@ -817,9 +954,26 @@ for l in range(len(nArr)):
     a = trialTypesSimulated[l,:,0]/(trialTypesSimulated[l,:,0]+trialTypesSimulated[l,:,1])
     plt.plot(signal_lengthArr[:len(trialTypesSimulated[l,:,:])],a, marker = 'o', label = 'trial length=%d'%nArr[l])
 
+plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left'); plt.xlabel('signal duration')
+plt.ylabel('hit rates'); plt.title('using V_j'); plt.figure()
+
+#plots of the results
+for l in range(len(nArr)):
+
+    a = trialTypesSimulatedW[l,:,0]/(trialTypesSimulatedW[l,:,0]+trialTypesSimulatedW[l,:,1])
+    plt.plot(signal_lengthArr[:len(trialTypesSimulatedW[l,:,:])],a, marker = 'o', label = 'trial length=%d'%nArr[l])
 
 plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left'); plt.xlabel('signal duration')
-plt.ylabel('hit rates')
+plt.ylabel('hit rates'); plt.title('using W_j'); plt.figure()
+
+#plotting avg W's
+for s in range(len(signal_lengthArr[:-5])):
+
+    plt.plot(nArr,trialFinalW[:,s,0], marker = 'o',  label = 'signal=%d'%signal_lengthArr[s])
+    plt.plot(nArr,thresholdArrW[:,s], linestyle = 'dashed', label = 'threshold for signal=%d'%signal_lengthArr[s])
+    
+plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left'); plt.xlabel('length of trial')
+plt.ylabel('avg W_n on hit trials'); 
 
 #%%
 #spare/ obsolete code
