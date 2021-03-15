@@ -5,11 +5,16 @@ import time
 from scipy.stats import norm
 
 #%%
-def generate_trial(trial_length, p_signal, mu_0, mu_1, mu_2, sigma, q):
+def generate_trial(trial_length, p_signal, mu_0, mu_1, mu_2, sigma, q,signal_length_type,signal_length):
     n = trial_length
     trial_signal = np.random.binomial(1,p_signal) #trial is signal/non signal with prob 0.5
-    start_signal = np.random.randint(0, n) #index of sample when signal begins (on signal trial)
-    end_signal = np.random.geometric(q, size=1) #time points for which signal will stay on
+    
+    if signal_length_type == 0:
+        start_signal = np.random.randint(0, n) #index of sample when signal begins (on signal trial)
+        end_signal = np.random.geometric(q, size=1) #time points for which signal will stay on
+    elif signal_length_type == 1:
+        start_signal = np.random.randint(0, n) #index of sample when signal begins (on signal trial)
+        end_signal = signal_length #length of signal is fixed
     
     trial = np.full((int(round(n))+1,1),0);#state values within a trial
     if trial_signal == 1: 
@@ -99,9 +104,11 @@ p_signal = 0.5 #prob of signal trial
 mu_0 = 0; mu_1 = 1; mu_2 = 0 #means of gaussian for observations in states 0,1,2
 sigma = 1 #standard deviation of Gaussian
 q = 0.2 #constant probability of leaving
+signal_length_type = 1; signal_length = 10
 
 start = time.perf_counter()
-trial, observation = func(trial_length, p_signal, mu_0, mu_1, mu_2, sigma, q)
+trial, observation = func(trial_length, p_signal, mu_0, mu_1, mu_2, sigma, q,
+                          signal_length_type,signal_length)
 posterior = inference(observation,trial_length,p_signal, mu_0, mu_1, 
                       mu_2, sigma, q)
 inferred_state,response,hit,miss,cr,fa = generate_response(trial,posterior)
@@ -110,37 +117,96 @@ print(time.perf_counter()-start)
 #%%
 #generating trial(s) - using generate_trial or generate_trialHMM
 
-func = generate_trial #function to use
+func = generate_trial #function to use to generate trial
 #parameters:
-trial_length = 100 #trial length
+trial_length = 50 #trial length
 p_signal = 0.5 #prob of signal trial
 mu_0 = 0; mu_1 = 1; mu_2 = 0 #means of gaussian for observations in states 0,1,2
 sigma = 1 #standard deviation of Gaussian
-q = 0.2 #constant probability of leaving
+q = 0.01 #constant probability of leaving
+nTrials = 2000
 
-nTrials = 1000
-trial_type = np.full((nTrials,3),0) #signal trial or not, start point of signal, signal len
-hit = 0; miss = 0; cr = 0; fa = 0
-#trials:
+trial_lengthArr = [1,5,10,25,50,75,100,150]
+signal_lengthArr = [1,3,5,10,15,25,35,50,75,100,150,200]
+trialTypeRates = np.full((len(signal_lengthArr),len(trial_lengthArr),4),np.nan)
+
 start = time.perf_counter()
-for k in range(nTrials):        
-    trial, observation = func(trial_length,
-                                p_signal, mu_0, mu_1, mu_2, sigma, q)
-    posterior = inference(observation,trial_length,p_signal, mu_0, mu_1, 
-                      mu_2, sigma, q)
-    inferred_state,response,hit0,miss0,cr0,fa0 = generate_response(trial,posterior)
-    
-    trial_signal = 0
-    if sum(trial) > 0: trial_signal =1 
-    if trial_signal == 1:
-        trial_type[k,0] = 1; 
-        trial_type[k,1] = np.intersect1d(np.where(trial[1:] == 1)[0], 
-                                     np.where(trial[:-1] == 0)[0])
-        trial_type[k,2] = len(np.where(trial == 1)[0])
-    
-    hit = hit+hit0; miss = miss+miss0; cr = cr+cr0; fa = fa+fa0
-print(time.perf_counter()-start)    
 
+for t in range(len(trial_lengthArr)):
+    trial_length= trial_lengthArr[t]
+    s=0
+    while signal_lengthArr[s] <= trial_length:
+        signal_length = signal_lengthArr[s]
+        trial_type = np.full((nTrials,3),0) #signal trial or not, start point of signal, signal len
+        hit = 0; miss = 0; cr = 0; fa = 0
+        #trials:
+        for k in range(nTrials):        
+            trial, observation = func(trial_length,
+                                        p_signal, mu_0, mu_1, mu_2, sigma, q)
+            posterior = inference(observation,trial_length,p_signal, mu_0, mu_1, 
+                              mu_2, sigma, q)
+            inferred_state,response,hit0,miss0,cr0,fa0 = generate_response(trial,posterior)
+            
+            hit = hit+hit0; miss = miss+miss0; cr = cr+cr0; fa = fa+fa0
+            
+        trialTypeRates[s,t,0] = hit; trialTypeRates[s,t,1] = miss;
+        trialTypeRates[s,t,2] = cr; trialTypeRates[s,t,3] = fa;
+        s = s+1
+
+print(time.perf_counter()-start) 
+
+#%%
+for l in range(len(signal_lengthArr)):
+
+    a = trialTypeRates[l,:,0]/(trialTypeRates[l,:,0]+trialTypeRates[l,:,1])
+    plt.plot(trial_lengthArr,a, marker = 'o', label = 'q=%1.3f'%signal_lengthArr[l])
+
+plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left'); plt.xlabel('trial length')
+plt.ylabel('hit rates'); plt.title('using V_j'); plt.figure()
+
+for l in range(len(qArr)):
+
+    a = trialTypeRates[l,:,3]/(trialTypeRates[l,:,2]+trialTypeRates[l,:,3])
+    plt.plot(trial_lengthArr,a, marker = 'o', label = 'q=%1.3f'%qArr[l])
+
+plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left'); plt.xlabel('trial length')
+plt.ylabel('fa rates'); plt.title('using V_j'); plt.figure()
+
+for l in range(len(trial_lengthArr)):
+
+    a = trialTypeRates[:,l,0]/(trialTypeRates[:,l,0]+trialTypeRates[:,l,1])
+    plt.plot(qArr,a, marker = 'o', label = 'trial_length=%d'%trial_lengthArr[l])
+
+plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left'); plt.xlabel('q')
+plt.ylabel('hit rates'); plt.title('using V_j'); plt.figure()
+
+for l in range(len(trial_lengthArr)):
+
+    a = trialTypeRates[:,l,3]/(trialTypeRates[:,l,2]+trialTypeRates[:,l,3])
+    plt.plot(qArr,a, marker = 'o', label = 'trial_length=%d'%trial_lengthArr[l])
+
+plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left'); plt.xlabel('q')
+plt.ylabel('fa rates'); plt.title('using V_j'); plt.figure()
+
+
+#%%
+#old/obsolete code
+       
+trial, observation = func(trial_length,
+                            p_signal, mu_0, mu_1, mu_2, sigma, q)
+posterior = inference(observation,trial_length,p_signal, mu_0, mu_1, 
+                  mu_2, sigma, q)
+inferred_state,response,hit0,miss0,cr0,fa0 = generate_response(trial,posterior)
+
+trial_signal = 0
+if sum(trial) > 0: trial_signal =1 
+if trial_signal == 1:
+    trial_type[k,0] = 1; 
+    trial_type[k,1] = np.intersect1d(np.where(trial[1:] == 1)[0], 
+                                 np.where(trial[:-1] == 0)[0])
+    trial_type[k,2] = len(np.where(trial == 1)[0])
+
+hit = hit+hit0; miss = miss+miss0; cr = cr+cr0; fa = fa+fa0
 
 
 
