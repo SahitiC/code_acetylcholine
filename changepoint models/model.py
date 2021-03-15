@@ -896,14 +896,16 @@ trialTypesSimulated = np.full((len(nArr),len(signal_lengthArr),5),0.0) #counting
 trialTypesSimulatedW = np.full((len(nArr),len(signal_lengthArr),5),0.0) #counting rates of h/m/f/c for each trial length $!
 trialFinalW = np.full((len(nArr),len(signal_lengthArr),4),np.nan) #final value of W for each n, r, for hits, cr, miss, fa
 
+threshold_w = 1
+
 start = time.perf_counter()
 for y in range(len(nArr)):
     trial_length = nArr[y]; #no. of samples (trial length) 
     s=0
     while signal_lengthArr[s] <= trial_length: 
         signal_length = signal_lengthArr[s]        
-        threshold_v = thresholdArr[y,s] #!
-        threshold_w = thresholdArrW[y,s]
+        #threshold_v = thresholdArr[y,s] #!
+        #threshold_w = thresholdArrW[y,s]
         hit = 0; miss = 0; cr = 0; fa = 0
         hitW = 0; missW = 0; crW = 0; faW = 0
         W_n = np.full((1,4),0.0)
@@ -915,13 +917,13 @@ for y in range(len(nArr)):
             w,v = inference_fixedSignal(trial_length,mu_s, sigma_s, mu_n, sigma_n,
                     p_signal,trial_type,signal_length, trial, observations)
      
-            repsonse, hit0, miss0, cr0, fa0 = response_fixedSignal(trial_signal,
-                                    trial, observations,v, threshold_v)
+            #repsonse, hit0, miss0, cr0, fa0 = response_fixedSignal(trial_signal,
+                                    #trial, observations,v, threshold_v)
         
             repsonseW, hitW0,missW0, crW0, faW0 = response_fixedSignal(trial_signal,
                                     trial, observations,w, threshold_w)
         
-            hit = hit+hit0; miss = miss+miss0; cr = cr+cr0; fa = fa+fa0
+            #hit = hit+hit0; miss = miss+miss0; cr = cr+cr0; fa = fa+fa0
             hitW = hitW+hitW0; missW = missW+missW0; crW = crW+crW0; faW = faW+faW0
             
             if hitW0 == 1: W_n[0,0] = W_n[0,0]+w[trial_length]
@@ -930,8 +932,8 @@ for y in range(len(nArr)):
             elif faW0 == 1: W_n[0,3] = W_n[0,3]+w[trial_length]
             
                 
-        trialTypesSimulated[y,s,0] = hit; trialTypesSimulated[y,s,1] = miss;
-        trialTypesSimulated[y,s,2] = cr; trialTypesSimulated[y,s,3] = fa;
+        #trialTypesSimulated[y,s,0] = hit; trialTypesSimulated[y,s,1] = miss;
+        #trialTypesSimulated[y,s,2] = cr; trialTypesSimulated[y,s,3] = fa;
         
         trialTypesSimulatedW[y,s,0] = hitW; trialTypesSimulatedW[y,s,1] = missW;
         trialTypesSimulatedW[y,s,2] = crW; trialTypesSimulatedW[y,s,3] = faW;
@@ -941,9 +943,9 @@ for y in range(len(nArr)):
 
         s = s+1
         
-    trialTypesSimulated[y,:,4] = norm.ppf(trialTypesSimulated[y,:,0]/(
-        trialTypesSimulated[y,:,0]+trialTypesSimulated[y,:,1]))-norm.ppf(
-            trialTypesSimulated[y,:,3]/(trialTypesSimulated[y,:,2]+trialTypesSimulated[y,:,3]))
+    #trialTypesSimulated[y,:,4] = norm.ppf(trialTypesSimulated[y,:,0]/(
+        #trialTypesSimulated[y,:,0]+trialTypesSimulated[y,:,1]))-norm.ppf(
+            #trialTypesSimulated[y,:,3]/(trialTypesSimulated[y,:,2]+trialTypesSimulated[y,:,3]))
 
 print(time.perf_counter()-start)
 
@@ -974,6 +976,25 @@ for s in range(len(signal_lengthArr[:-5])):
     
 plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left'); plt.xlabel('length of trial')
 plt.ylabel('avg W_n on hit trials'); 
+
+#%%
+#plots of the results
+for l in range(len(nArr)):
+
+    a = trialTypesSimulatedW[l,:,0]/(trialTypesSimulatedW[l,:,0]+trialTypesSimulatedW[l,:,1])
+    plt.plot(signal_lengthArr[:len(trialTypesSimulatedW[l,:,:])],a, marker = 'o', label = 'trial length=%d'%nArr[l])
+
+plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left'); plt.xlabel('signal duration')
+plt.ylabel('hit rates'); plt.title('using belief'); plt.figure()
+
+for l in range(len(nArr)):
+
+    a = trialTypesSimulatedW[l,:,3]/(trialTypesSimulatedW[l,:,3]+trialTypesSimulatedW[l,:,2])
+    plt.plot(signal_lengthArr[:len(trialTypesSimulatedW[l,:,:])],a, marker = 'o', label = 'trial length=%d'%nArr[l])
+
+plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left'); plt.xlabel('signal duration')
+plt.ylabel('fa rates'); plt.title('using belief'); plt.figure()
+
 
 #%%
 #spare/ obsolete code
