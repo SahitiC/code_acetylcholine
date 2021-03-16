@@ -125,6 +125,7 @@ mu_0 = 0; mu_1 = 1; mu_2 = 0 #means of gaussian for observations in states 0,1,2
 sigma = 1 #standard deviation of Gaussian
 q = 0.01 #constant probability of leaving
 nTrials = 2000
+signal_length_type = 1; signal_length = 10
 
 trial_lengthArr = [1,5,10,25,50,75,100,150]
 signal_lengthArr = [1,3,5,10,15,25,35,50,75,100,150,200]
@@ -141,8 +142,8 @@ for t in range(len(trial_lengthArr)):
         hit = 0; miss = 0; cr = 0; fa = 0
         #trials:
         for k in range(nTrials):        
-            trial, observation = func(trial_length,
-                                        p_signal, mu_0, mu_1, mu_2, sigma, q)
+            trial, observation = func(trial_length, p_signal, mu_0, mu_1, mu_2,
+                                      sigma, q, signal_length_type, signal_length)
             posterior = inference(observation,trial_length,p_signal, mu_0, mu_1, 
                               mu_2, sigma, q)
             inferred_state,response,hit0,miss0,cr0,fa0 = generate_response(trial,posterior)
