@@ -178,7 +178,7 @@ for l in range(len(trial_lengthArr)):
     a = trialTypeRates[:,l,0]/(trialTypeRates[:,l,0]+trialTypeRates[:,l,1])
     plt.plot(signal_lengthArr,a, marker = 'o', label = 'trial_length=%d'%trial_lengthArr[l])
 
-plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left'); plt.xlabel('q')
+plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left'); plt.xlabel('signal length')
 plt.ylabel('hit rates'); plt.title('using V_j'); plt.figure()
 
 for l in range(len(trial_lengthArr)):
@@ -186,7 +186,7 @@ for l in range(len(trial_lengthArr)):
     a = trialTypeRates[:,l,3]/(trialTypeRates[:,l,2]+trialTypeRates[:,l,3])
     plt.plot(signal_lengthArr,a, marker = 'o', label = 'trial_length=%d'%trial_lengthArr[l])
 
-plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left'); plt.xlabel('q')
+plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left'); plt.xlabel('signal length')
 plt.ylabel('fa rates'); plt.title('using V_j'); plt.figure()
 
 
