@@ -13,7 +13,7 @@ def generate_trial(trial_length, p_signal, mu_0, mu_1, mu_2, sigma, q,signal_len
         start_signal = np.random.randint(0, n) #index of sample when signal begins (on signal trial)
         end_signal = np.random.geometric(q, size=1) #time points for which signal will stay on
     elif signal_length_type == 1:
-        start_signal = np.random.randint(0, n) #index of sample when signal begins (on signal trial)
+        start_signal = np.random.randint(0, n-signal_length+1) #index of sample when signal begins (on signal trial)
         end_signal = signal_length #length of signal is fixed
     
     trial = np.full((int(round(n))+1,1),0);#state values within a trial
@@ -142,8 +142,13 @@ for t in range(len(trial_lengthArr)):
         hit = 0; miss = 0; cr = 0; fa = 0
         #trials:
         for k in range(nTrials):        
+<<<<<<< HEAD
             trial, observation = func(trial_length, p_signal, mu_0, mu_1, mu_2,
                                       sigma, q, signal_length_type, signal_length)
+=======
+            trial, observation = func(trial_length, p_signal, mu_0, mu_1, 
+                        mu_2, sigma, q,signal_length_type,signal_length)
+>>>>>>> a34bdb2c4e797de208b502e0a30e3146e18a87e7
             posterior = inference(observation,trial_length,p_signal, mu_0, mu_1, 
                               mu_2, sigma, q)
             inferred_state,response,hit0,miss0,cr0,fa0 = generate_response(trial,posterior)
@@ -165,10 +170,10 @@ for l in range(len(signal_lengthArr)):
 plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left'); plt.xlabel('trial length')
 plt.ylabel('hit rates'); plt.title('using V_j'); plt.figure()
 
-for l in range(len(qArr)):
+for l in range(len(signal_lengthArr)):
 
     a = trialTypeRates[l,:,3]/(trialTypeRates[l,:,2]+trialTypeRates[l,:,3])
-    plt.plot(trial_lengthArr,a, marker = 'o', label = 'q=%1.3f'%qArr[l])
+    plt.plot(trial_lengthArr,a, marker = 'o', label = 'q=%1.3f'%signal_lengthArr[l])
 
 plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left'); plt.xlabel('trial length')
 plt.ylabel('fa rates'); plt.title('using V_j'); plt.figure()
@@ -176,7 +181,7 @@ plt.ylabel('fa rates'); plt.title('using V_j'); plt.figure()
 for l in range(len(trial_lengthArr)):
 
     a = trialTypeRates[:,l,0]/(trialTypeRates[:,l,0]+trialTypeRates[:,l,1])
-    plt.plot(qArr,a, marker = 'o', label = 'trial_length=%d'%trial_lengthArr[l])
+    plt.plot(signal_lengthArr,a, marker = 'o', label = 'trial_length=%d'%trial_lengthArr[l])
 
 plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left'); plt.xlabel('q')
 plt.ylabel('hit rates'); plt.title('using V_j'); plt.figure()
@@ -184,7 +189,7 @@ plt.ylabel('hit rates'); plt.title('using V_j'); plt.figure()
 for l in range(len(trial_lengthArr)):
 
     a = trialTypeRates[:,l,3]/(trialTypeRates[:,l,2]+trialTypeRates[:,l,3])
-    plt.plot(qArr,a, marker = 'o', label = 'trial_length=%d'%trial_lengthArr[l])
+    plt.plot(signal_lengthArr,a, marker = 'o', label = 'trial_length=%d'%trial_lengthArr[l])
 
 plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left'); plt.xlabel('q')
 plt.ylabel('fa rates'); plt.title('using V_j'); plt.figure()
