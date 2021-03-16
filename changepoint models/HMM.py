@@ -142,8 +142,13 @@ for t in range(len(trial_lengthArr)):
         hit = 0; miss = 0; cr = 0; fa = 0
         #trials:
         for k in range(nTrials):        
+<<<<<<< HEAD
+            trial, observation = func(trial_length, p_signal, mu_0, mu_1, mu_2,
+                                      sigma, q, signal_length_type, signal_length)
+=======
             trial, observation = func(trial_length, p_signal, mu_0, mu_1, 
                         mu_2, sigma, q,signal_length_type,signal_length)
+>>>>>>> a34bdb2c4e797de208b502e0a30e3146e18a87e7
             posterior = inference(observation,trial_length,p_signal, mu_0, mu_1, 
                               mu_2, sigma, q)
             inferred_state,response,hit0,miss0,cr0,fa0 = generate_response(trial,posterior)
