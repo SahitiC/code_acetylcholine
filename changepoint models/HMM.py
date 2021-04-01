@@ -24,11 +24,11 @@ def generate_trial(trial_length, p_signal, mu_0, mu_1, mu_2, sigma, q,signal_len
     
     observation = np.full((int(round(n)),1),np.nan)
     for i in range(len(observation)):
-        if trial[i] == 0:
+        if trial[i+1] == 0:
             observation[i] = np.random.normal(mu_0,sigma)
-        elif trial[i] == 1:
+        elif trial[i+1] == 1:
             observation[i] = np.random.normal(mu_1,sigma)
-        elif trial[i] == 2:
+        elif trial[i+1] == 2:
             observation[i] = np.random.normal(mu_2,sigma)
             
     return trial, observation
@@ -42,8 +42,8 @@ def generate_trialHMM(trial_length, p_signal, mu_0, mu_1, mu_2, sigma, q,
     observation = np.full((int(round(n)),1),np.nan)
         
     for i in range(n):
-        probStart = 1/((n/p_signal)-i)
-        transition_matrix = np.array([[1-probStart,probStart,0],
+        probStart = 1/((n)-i)
+        transition_matrix = np.array([[1-(p_signal*probStart),p_signal*probStart,0],
                                       [0,1-q,q],[0,0,1]])
         
 
@@ -64,7 +64,7 @@ def inference(observation,trial_length,p_signal, mu_0, mu_1, mu_2, sigma, q):
     
     for j in range(n):
         probStart = 1/((n/p_signal)-j)
-        transition_matrix = np.array([[1-probStart,probStart,0],
+        transition_matrix = np.array([[1-(probStart),probStart,0],
                                       [0,1-q,q],[0,0,1]])
         emission_probability = [norm.pdf(observation[j],mu_0,sigma)[0],
         norm.pdf(observation[j],mu_1,sigma)[0], norm.pdf(observation[j],mu_2,sigma)[0]]
@@ -100,11 +100,11 @@ def generate_response(trial,posterior):
 
 func = generate_trialHMM #function to use
 #parameters:
-trial_length = 100 #trial length
+trial_length = 5 #trial length
 p_signal = 0.5 #prob of signal trial
 mu_0 = 0; mu_1 = 1; mu_2 = 0 #means of gaussian for observations in states 0,1,2
 sigma = 1 #standard deviation of Gaussian
-q = 0.0 #constant probability of leaving
+q = 0.2 #constant probability of leaving
 signal_length_type = 0; signal_length = 10
 
 start = time.perf_counter()
@@ -116,11 +116,23 @@ inferred_state,response,hit,miss,cr,fa = generate_response(trial,posterior)
 print(time.perf_counter()-start)  
 
 #%%
+#plotting the associated signal and inferred posterior
+t = np.arange(0,len(observation),1)
+plt.plot(t,trial[1:], label='underlying signal')
+plt.plot(t,observation, label='observations')
+plt.legend(); plt.xlabel('timepoint'); plt.figure()
+plt.plot(posterior[1:,0],label='for s=0')
+plt.plot(posterior[1:,1],label='for s=1')
+plt.plot(posterior[1:,2],label='for s=2')
+plt.legend(); plt.ylabel('posterior'); plt.xlabel('timepoint')
+plt.figure()
+
+#%%
 #generating trial(s) - using generate_trial or generate_trialHMM
 
 func = generate_trialHMM #function to use to generate trial
 #parameters:
-trial_length = 50 #trial length
+trial_length = 1 #trial length
 p_signal = 0.5 #prob of signal trial
 mu_0 = 0; mu_1 = 1; mu_2 = 0 #means of gaussian for observations in states 0,1,2
 sigma = 1 #standard deviation of Gaussian
@@ -317,7 +329,7 @@ def generate_trialHMMDiscrete(trial_length, p_signal, eta0, eta1,eta2, q,
         
     for i in range(n):
         probStart = 1/((n/p_signal)-i)
-        transition_matrix = np.array([[1-probStart,probStart,0],
+        transition_matrix = np.array([[1-(probStart),probStart,0],
                                       [0,1-q,q],[0,0,1]])
         
         trial[i+1] = np.random.choice([0,1,2], 
@@ -339,7 +351,7 @@ def inferenceDiscrete(observation,trial_length,p_signal, eta0,eta1,eta2, q):
     
     for j in range(n):
         probStart = 1/((n/p_signal)-j)
-        transition_matrix = np.array([[1-probStart,probStart,0],
+        transition_matrix = np.array([[1-(probStart),probStart,0],
                                       [0,1-q,q],[0,0,1]])
         emission_probability = emission_matrix[observation[j],:]
         
@@ -372,12 +384,13 @@ def generate_responseDiscrete(trial,posterior):
 #%%
 #simulating a single trial+inference
 
-func = generate_trialDiscrete #function to use
+func = generate_trialHMMDiscrete #function to use
 #parameters:
-trial_length = 100 #trial length
+trial_length = 10 #trial length
 p_signal = 0.5 #prob of signal trial
-eta_0 = 0.9; eta_1 = 0.9; eta_2 = 0.9 #confusabilities for the 3 states
-q = 0.1 #constant probability of leaving
+eta= 0.9
+eta_0 = eta; eta_1 = eta; eta_2 = eta #confusabilities for the 3 states
+q = 0.00 #constant probability of leaving
 signal_length_type = 0; signal_length = 10
 
 start = time.perf_counter()
@@ -389,19 +402,29 @@ inferred_state,response,hit,miss,cr,fa = generate_responseDiscrete(trial,posteri
 print(time.perf_counter()-start)  
 
 #%%
+fig,ax = plt.subplots(1,1)
+t = np.arange(1,trial_length+1,1)
+ax.plot(t,trial[1:], label='underlying signal')
+ax.scatter(t,observation, label='observations',color ='green')
+ax.plot(t,posterior[1:,1], label='posterior for s=1')
+
+ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left');
+ax.set_title('eta=%1.1f,n=%d'%(eta,trial_length))
+
+#%%
 #generating trial(s) - using generate_trial or generate_trialHMM
 
 func = generate_trialHMMDiscrete #function to use to generate trial
 #parameters:
 trial_length = 50 #trial length
 p_signal = 0.5 #prob of signal trial
-eta_0 = 0.7; eta_1 = 0.7; eta_2 = 0.7 #means of gaussian for observations in states 0,1,2
-q = 0.01 #constant probability of leaving
+eta_0 = 0.7; eta_1 = 0.7; eta_2 = 0.7 #eta
+q = 0.00 #constant probability of leaving
 nTrials = 2000
 signal_length_type = 0; signal_length = 10
 
 trial_lengthArr = [1,5,10,25,50,75,100,150]
-qArr = [0.0] #0.01,0.2,0.5,0.7
+qArr = [0.01,0.2,0.5,0.7] #0.01,0.2,0.5,0.7
 trialTypeRates = np.full((len(qArr),len(trial_lengthArr),4),np.nan)
 
 start = time.perf_counter()
@@ -442,7 +465,7 @@ for l in range(len(qArr)):
 plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left'); plt.xlabel('trial length')
 plt.ylabel('hit rates'); 
 plt.title('eta0=%1.1f,eta1=%1.1f,eta2=%1.1f'%(eta_0,eta_1,eta_2)); 
-#plt.figure()
+plt.figure()
 
 for l in range(len(qArr)):
 
@@ -475,23 +498,123 @@ plt.title('eta0=%1.1f,eta1=%1.1f,eta2=%1.1f'%(eta_0,eta_1,eta_2));
 plt.figure()
 
 #%%
+#generating trial(s) - using generate_trial or generate_trialHMM
+
+func = generate_trialDiscrete #function to use to generate trial
+#parameters:
+trial_length = 50 #trial length
+p_signal = 0.5 #prob of signal trial
+eta_0 = 0.7; eta_1 = 0.7; eta_2 = 0.7 #means of gaussian for observations in states 0,1,2
+sigma = 1 #standard deviation of Gaussian
+q = 0.00001 #constant probability of leaving
+nTrials = 2000
+signal_length_type = 1; signal_length = 10
+
+trial_lengthArr = [1,5,10,25,50,75,100,150]
+signal_lengthArr = [1,3,5,10,15,25,35,50,75,100,150,200]
+trialTypeRates = np.full((len(signal_lengthArr),len(trial_lengthArr),4),np.nan)
+
+start = time.perf_counter()
+
+for t in range(len(trial_lengthArr)):
+    trial_length= trial_lengthArr[t]
+    s=0
+    while signal_lengthArr[s] <= trial_length:
+        signal_length = signal_lengthArr[s]
+        trial_type = np.full((nTrials,3),0) #signal trial or not, start point of signal, signal len
+        hit = 0; miss = 0; cr = 0; fa = 0
+        #trials:
+        for k in range(nTrials):        
+
+            trial, observation = func(trial_length, p_signal, eta_0, eta_1, 
+                                eta_2, q, signal_length_type, signal_length)
+
+
+            posterior = inferenceDiscrete(observation,trial_length,p_signal, eta_0, 
+                                  eta_1, eta_2, q)
+            
+            inferred_state,response,hit0,miss0,cr0,fa0 = generate_responseDiscrete(
+                trial,posterior)
+            
+            hit = hit+hit0; miss = miss+miss0; cr = cr+cr0; fa = fa+fa0
+            
+        trialTypeRates[s,t,0] = hit; trialTypeRates[s,t,1] = miss;
+        trialTypeRates[s,t,2] = cr; trialTypeRates[s,t,3] = fa;
+            
+        s = s+1
+
+print(time.perf_counter()-start) 
+
+#%%
+for l in range(len(signal_lengthArr)):
+
+    a = trialTypeRates[l,:,0]/(trialTypeRates[l,:,0]+trialTypeRates[l,:,1])
+    plt.plot(trial_lengthArr,a, marker = 'o', label = 'signal=%1.3f'%signal_lengthArr[l])
+
+plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left'); plt.xlabel('trial length')
+plt.ylabel('hit rates'); 
+plt.title('eta0=%1.1f,eta1=%1.1f,eta2=%1.1f'%(eta_0,eta_1,eta_2)); 
+plt.figure()
+
+for l in range(len(signal_lengthArr)):
+
+    a = trialTypeRates[l,:,3]/(trialTypeRates[l,:,2]+trialTypeRates[l,:,3])
+    plt.plot(trial_lengthArr,a, marker = 'o', label = 'signal=%1.3f'%signal_lengthArr[l])
+
+plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left'); plt.xlabel('trial length')
+plt.ylabel('fa rates'); 
+plt.title('eta0=%1.1f,eta1=%1.1f,eta2=%1.1f'%(eta_0,eta_1,eta_2)); plt.figure()
+
+for l in range(len(trial_lengthArr)):
+
+    a = trialTypeRates[:,l,0]/(trialTypeRates[:,l,0]+trialTypeRates[:,l,1])
+    plt.plot(signal_lengthArr,a, marker = 'o', label = 'trial_length=%d'%trial_lengthArr[l])
+
+plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left'); plt.xlabel('signal length')
+plt.ylabel('hit rates'); 
+plt.title('eta0=%1.1f,eta1=%1.1f,eta2=%1.1f'%(eta_0,eta_1,eta_2)); 
+plt.figure()
+
+for l in range(len(trial_lengthArr)):
+
+    a = trialTypeRates[:,l,3]/(trialTypeRates[:,l,2]+trialTypeRates[:,l,3])
+    plt.plot(signal_lengthArr,a, marker = 'o', label = 'trial_length=%d'%trial_lengthArr[l])
+
+plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left'); plt.xlabel('signal length')
+plt.ylabel('fa rates'); 
+plt.title('eta0=%1.1f,eta1=%1.1f,eta2=%1.1f'%(eta_0,eta_1,eta_2));
+plt.figure()
+
+
+#%%
 #old/obsolete code
-       
-trial, observation = func(trial_length,
-                            p_signal, mu_0, mu_1, mu_2, sigma, q)
-posterior = inference(observation,trial_length,p_signal, mu_0, mu_1, 
-                  mu_2, sigma, q)
-inferred_state,response,hit0,miss0,cr0,fa0 = generate_response(trial,posterior)
-
-trial_signal = 0
-if sum(trial) > 0: trial_signal =1 
-if trial_signal == 1:
-    trial_type[k,0] = 1; 
-    trial_type[k,1] = np.intersect1d(np.where(trial[1:] == 1)[0], 
-                                 np.where(trial[:-1] == 0)[0])
-    trial_type[k,2] = len(np.where(trial == 1)[0])
-
-hit = hit+hit0; miss = miss+miss0; cr = cr+cr0; fa = fa+fa0
+func = generate_trialHMMDiscrete  
+trial_length = 10 #trial length
+p_signal = 0.5 #prob of signal trial
+eta_0 = 0.7; eta_1 = 0.7; eta_2 = 0.7 #means of gaussian for observations in states 0,1,2
+q = 0.1 #constant probability of leaving
+nTrials = 3000
+signal_length_type = 0; signal_length = 10
+hit =0; cr=0; miss=0; fa=0
+   
+trial_type = np.full((nTrials,3),0)
+for k in range(nTrials):
+    trial, observation = func(trial_length, p_signal, eta_0, eta_1, 
+                    eta_2, q, signal_length_type, signal_length)
+    posterior = inferenceDiscrete(observation,trial_length,p_signal, eta_0, 
+                          eta_1, eta_2, q)
+    
+    inferred_state,response,hit0,miss0,cr0,fa0 = generate_responseDiscrete(
+    trial,posterior)
+    trial_signal = 0
+    if sum(trial) > 0: trial_signal =1 
+    if trial_signal == 1:
+        trial_type[k,0] = 1; 
+        trial_type[k,1] = np.intersect1d(np.where(trial[1:] == 1)[0], 
+                                     np.where(trial[:-1] == 0)[0]) #start signal
+        trial_type[k,2] = len(np.where(trial == 1)[0]) #signal length
+    
+    hit = hit+hit0; miss = miss+miss0; cr = cr+cr0; fa = fa+fa0
 
 
 
