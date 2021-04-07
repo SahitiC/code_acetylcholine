@@ -24,7 +24,7 @@ def softmax(x, beta):
 
 
 #%%
-db = 0.001
+db = 0.01
 b = np.arange(0.0,1.+2*db,db) #discrete belief space use for b0,b1 and b2
 rounding = 3;
 b = np.round(b,rounding)
@@ -43,7 +43,7 @@ c = np.array([[c00,c01],[c10,c11]])
 p_signal = 0.5; q = 0.0
 n = 10 #trial length
 
-compare = 1; beta = 100; 
+compare = 1; beta = 75; 
 
 #%%
 
