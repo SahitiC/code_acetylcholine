@@ -1,6 +1,7 @@
 #importing required packages
 import numpy as np
 import matplotlib.pyplot as plt
+import matplotlib
 import time
 import seaborn as sns
 
@@ -40,7 +41,10 @@ R = np.array([[1,0],[0,1]])
 c00 = 0.00; c10 = 0.00; c01 = 0.00; c11 = 0.00
 #magnitude of costs on going from i to j internal states
 c = np.array([[c00,c01],[c10,c11]])
+
 p_signal = 0.5; q = 0.1
+
+
 n = 10 #trial length
 
 compare = 1; beta = 50; 
@@ -86,7 +90,9 @@ for t1 in range(n):
             value1[i,int(1/db)-i,0,t] = 1.-c[0,1]; value1[i,int(1/db)-i,1,t] = 1.-c[1,1];
             iterj = 1-db
         
-        while round(b[i]+b[j],rounding)<=iterj:#belief for state = 2
+
+        while round(b[i]+b[j], rounding)<=iterj:#belief for state = 2
+
             bArr = [1-b[i]-b[j],b[i],b[j]]
             arr = np.array([[np.matmul(bArr,transition_matrix)*PX_s[0,0,:],
                               np.matmul(bArr,transition_matrix)*PX_s[0,1,:]],
@@ -185,7 +191,9 @@ for t1 in range(n):
             value0[i,int(1/db)-i,0,t] = 1-c[0,0]; value0[i,int(1/db)-i,1,t] = 1-c[1,0]; 
             value1[i,int(1/db)-i,0,t] = 1.-c[0,1]; value1[i,int(1/db)-i,1,t] = 1.-c[1,1];
             iterj = 1-db
-        while  round(b[i]+b[j],rounding)<=iterj:#belief for state = 2
+
+        while round(b[i]+b[j], rounding)<=iterj:#belief for state = 2
+
             bArr = [1-b[i]-b[j],b[i],b[j]]
             arr = np.array([[np.matmul(bArr,transition_matrix)*PX_s[0,0,:],
                               np.matmul(bArr,transition_matrix)*PX_s[0,1,:]],
@@ -276,8 +284,34 @@ for t1 in range(n):
             
 print(time.perf_counter()-start) 
 
+
 #%%
-i=1
+i = 9
+plt.imshow(value[:,:,0,i], extent=[0,1,1,0]);
+plt.ylabel('belief for signal'); plt.xlabel('belief for postsignal')
+plt.title('value, t=%d'%i); plt.colorbar(); plt.figure()
+
+plt.imshow(value0[:,:,0,i], extent=[0,1,1,0]);
+plt.ylabel('belief for signal'); plt.xlabel('belief for postsignal')
+plt.title('q0, t=%d'%i); plt.colorbar(); plt.figure()
+
+plt.imshow(value1[:,:,0,i], extent=[0,1,1,0]);
+plt.ylabel('belief for signal'); plt.xlabel('belief for postsignal')
+plt.title('q1, t=%d'%i); plt.colorbar(); plt.figure()
+
+plt.imshow(value0[:,:,0,i]-value1[:,:,0,i], extent=[0,1,1,0]);
+plt.ylabel('belief for signal'); plt.xlabel('belief for postsignal')
+plt.title('q0-q1, t=%d'%i); plt.colorbar(); plt.figure()
+
+colorsList = ['purple', 'yellow', 'red']
+cmap = matplotlib.colors.ListedColormap(colorsList)
+plt.imshow(policy[:,:,0,i], extent=[0,1,1,0], cmap=cmap);
+plt.ylabel('belief for signal'); plt.ylabel('belief for postsignal')
+plt.title('policy, t=%d'%i); plt.colorbar(); 
+
+#%%
+i=10
+
 sns.heatmap(value[:,:,0,i])  
 plt.title('value,t=%d'%i); plt.figure()
 sns.heatmap(value0[:,:,0,i])  
@@ -292,3 +326,4 @@ plt.title('policy,t=%d'%i); plt.figure()
 #%%
 plt.plot(value0[0,:,0,9])
 plt.plot(value1[0,:,0,9])
+
