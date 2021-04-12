@@ -88,7 +88,6 @@ for t1 in range(n):
             value0[i,int(1/db)-i,0,t] = 1-c[0,0]; value0[i,int(1/db)-i,1,t] = 1-c[1,0]; 
             value1[i,int(1/db)-i,0,t] = 1.-c[0,1]; value1[i,int(1/db)-i,1,t] = 1.-c[1,1];
             iterj = 1-db
-        
 
         while round(b[i]+b[j], rounding)<=iterj:#belief for state = 2
 
@@ -285,7 +284,7 @@ print(time.perf_counter()-start)
 
 
 #%%
-i = 9
+i = 8
 plt.imshow(value[:,:,0,i], extent=[0,1,1,0]);
 plt.ylabel('belief for signal'); plt.xlabel('belief for postsignal')
 plt.title('value, t=%d'%i); plt.colorbar(); plt.figure()
@@ -308,8 +307,22 @@ plt.imshow(policy[:,:,0,i], extent=[0,1,1,0], cmap=cmap);
 plt.ylabel('belief for signal'); plt.ylabel('belief for postsignal')
 plt.title('policy, t=%d'%i); plt.colorbar(); 
 
+#%%
+t = 8
+plt.plot(b,value0[0,:,0,t], label = 'value0, b(1)=0, t=%d'%(t))
+plt.plot(b,value1[0,:,0,t], label = 'value1, b(1)=0, t=%d'%(t))
+plt.legend(); plt.xlabel('b(2)'); plt.figure()
+plt.plot(b,value0[300,:,0,t], label = 'value0, b(1)=0.3, t=%d'%(t))
+plt.plot(b,value1[300,:,0,t], label = 'value1, b(1)=0.3, t=%d'%(t))
+plt.legend(); plt.xlabel('b(2)'); plt.figure()
+plt.plot(b,value0[600,:,0,t], label = 'value0, b(1)=0.6, t=%d'%(t))
+plt.plot(b,value1[600,:,0,t], label = 'value1, b(1)=0.6, t=%d'%(t))
+plt.legend(); plt.xlabel('b(2)'); plt.figure()
+plt.plot(b,value0[900,:,0,t], label = 'value0, b(1)=0.9, t=%d'%(t))
+plt.plot(b,value1[900,:,0,t], label = 'value1, b(1)=0.9, t=%d'%(t))
+plt.legend(); plt.xlabel('b(2)'); plt.figure()
+
 
 #%%
 plt.plot(value0[0,:,0,9])
 plt.plot(value1[0,:,0,9])
-
