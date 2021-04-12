@@ -199,7 +199,7 @@ def getOptimalPolicy(b,I,O,etaL,etaH,s,I_N,PX_s,R,cost,p_signal,n,db,
 db = 0.0001
 b = np.arange(0.0,1.0+(db),db) #discrete belief space to use for b0 and b1
 b = np.round(b,4)
-etaL = 0.5; etaH = 1.0 #two levels of eta for the two internal states
+etaL = 0.7; etaH = 0.9 #two levels of eta for the two internal states
 I = np.array([0,1]) #internal state space : choose low or high eta levels
 O = np.array([0,1]) #observation space: 0/1
 s = np.array([0,1]) #environmental state space
@@ -279,6 +279,10 @@ sns.heatmap(policy[:,0,:],yticklabels = yticks, cmap='coolwarm')
 plt.ylabel('belief state'); plt.xlabel('time'); 
 plt.title('policy')
 plt.figure()
+
+#%%
+
+
 
 #%%
 #inference with executing the policy: single change point
