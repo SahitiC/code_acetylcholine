@@ -41,7 +41,11 @@ R = np.array([[1,0],[0,1]])
 c00 = 0.00; c10 = 0.00; c01 = 0.00; c11 = 0.00
 #magnitude of costs on going from i to j internal states
 c = np.array([[c00,c01],[c10,c11]])
+<<<<<<< HEAD
 p_signal = 0.5; q = 0.1
+=======
+p_signal = 0.5; q = 0.3
+>>>>>>> dcd9901210ed8b290ef25c49008396c264dabbe0
 n = 10 #trial length
 
 compare = 1; beta = 50; 
@@ -87,7 +91,11 @@ for t1 in range(n):
             value1[i,int(1/db)-i,0,t] = 1.-c[0,1]; value1[i,int(1/db)-i,1,t] = 1.-c[1,1];
             iterj = 1-db
         
+<<<<<<< HEAD
         while round(b[i]+b[j], rounding)<=iterj:#belief for state = 2
+=======
+        while round(b[i]+b[j],rounding)<=iterj:#belief for state = 2
+>>>>>>> dcd9901210ed8b290ef25c49008396c264dabbe0
             bArr = [1-b[i]-b[j],b[i],b[j]]
             arr = np.array([[np.matmul(bArr,transition_matrix)*PX_s[0,0,:],
                               np.matmul(bArr,transition_matrix)*PX_s[0,1,:]],
@@ -186,7 +194,11 @@ for t1 in range(n):
             value0[i,int(1/db)-i,0,t] = 1-c[0,0]; value0[i,int(1/db)-i,1,t] = 1-c[1,0]; 
             value1[i,int(1/db)-i,0,t] = 1.-c[0,1]; value1[i,int(1/db)-i,1,t] = 1.-c[1,1];
             iterj = 1-db
+<<<<<<< HEAD
         while round(b[i]+b[j], rounding)<=iterj:#belief for state = 2
+=======
+        while  round(b[i]+b[j],rounding)<=iterj:#belief for state = 2
+>>>>>>> dcd9901210ed8b290ef25c49008396c264dabbe0
             bArr = [1-b[i]-b[j],b[i],b[j]]
             arr = np.array([[np.matmul(bArr,transition_matrix)*PX_s[0,0,:],
                               np.matmul(bArr,transition_matrix)*PX_s[0,1,:]],
@@ -303,6 +315,7 @@ plt.ylabel('belief for signal'); plt.ylabel('belief for postsignal')
 plt.title('policy, t=%d'%i); plt.colorbar(); 
 
 #%%
+<<<<<<< HEAD
 plt.plot(value[0,:,0,10], label = '10')
 plt.plot(value[0,:,0,9], label = '9')
 plt.plot(value[0,:,0,8], label = '8')
@@ -311,3 +324,20 @@ plt.plot(value[0,:,0,6], label = '6')
 plt.legend()
 
  
+=======
+i=10
+sns.heatmap(value[:,:,0,i])  
+plt.title('value,t=%d'%i); plt.figure()
+sns.heatmap(value0[:,:,0,9])  
+plt.title('q0,t=%d'%i); plt.figure()
+sns.heatmap(value1[:,:,0,9])  
+plt.title('q1,t=%d'%i); plt.figure()
+sns.heatmap(value0[:,:,0,9]-value1[:,:,0,9])      
+plt.title('q0-q1,t=%d'%i); plt.figure()
+sns.heatmap(policy[:,:,0,9])     
+plt.title('policy,t=%d'%i); plt.figure()
+
+#%%
+plt.plot(value0[0,:,0,9])
+plt.plot(value1[0,:,0,9])
+>>>>>>> dcd9901210ed8b290ef25c49008396c264dabbe0
