@@ -30,7 +30,7 @@ b = np.arange(0.0,1.+2*db,db) #discrete belief space use for b0,b1 and b2
 rounding = 3;
 b = np.round(b,rounding)
 
-etaL = 0.5; etaH = 1.00 #two levels of eta for the two internal states
+etaL = 0.5; etaH = 0.9 #two levels of eta for the two internal states
 I = np.array([0,1]) #internal state space : choose low or high eta levels
 O = np.array([0,1]) #observation space: 0/1
 s = np.array([0,1,2]) #environmental state space
@@ -43,6 +43,7 @@ c00 = 0.00; c10 = 0.00; c01 = 0.00; c11 = 0.00
 c = np.array([[c00,c01],[c10,c11]])
 
 p_signal = 0.5; q = 0.1
+
 n = 10 #trial length
 
 compare = 1; beta = 50; 
@@ -88,7 +89,6 @@ for t1 in range(n):
             value1[i,int(1/db)-i,0,t] = 1.-c[0,1]; value1[i,int(1/db)-i,1,t] = 1.-c[1,1];
             iterj = 1-db
 
-
         while round(b[i]+b[j], rounding)<=iterj:#belief for state = 2
 
             bArr = [1-b[i]-b[j],b[i],b[j]]
@@ -103,7 +103,7 @@ for t1 in range(n):
                              arr[1,1,:]/np.sum(arr[1,1,:])]])
             closest_index = np.array(b1Arr/db, dtype=int)
             
-            if (closest_index >= len(b)-2).any():
+            if (closest_index[:,:,1]+closest_index[:,:,2]>= len(b)-3).any():
                 futurevx0_y0 = np.array([[value[closest_index[0,0,1],closest_index[0,0,2],0,t+1],
                                 value[closest_index[0,1,1],closest_index[0,1,2],0,t+1]],
                                 [value[closest_index[1,0,1],closest_index[1,0,2],1,t+1],
@@ -204,7 +204,7 @@ for t1 in range(n):
                              arr[1,1,:]/np.sum(arr[1,1,:])]])
             closest_index = np.array(b1Arr/db, dtype=int)
             
-            if (closest_index >= len(b)-2).any():
+            if (closest_index[:,:,1]+closest_index[:,:,2]>= len(b)-3).any():
                 futurevx0_y0 = np.array([[value[closest_index[0,0,1],closest_index[0,0,2],0,t+1],
                                 value[closest_index[0,1,1],closest_index[0,1,2],0,t+1]],
                                 [value[closest_index[1,0,1],closest_index[1,0,2],1,t+1],
@@ -322,3 +322,21 @@ plt.legend(); plt.xlabel('b(2)'); plt.figure()
 plt.plot(b,value0[900,:,0,t], label = 'value0, b(1)=0.9, t=%d'%(t))
 plt.plot(b,value1[900,:,0,t], label = 'value1, b(1)=0.9, t=%d'%(t))
 plt.legend(); plt.xlabel('b(2)'); plt.figure()
+
+#%%
+i=10
+
+sns.heatmap(value[:,:,0,i])  
+plt.title('value,t=%d'%i); plt.figure()
+sns.heatmap(value0[:,:,0,i])  
+plt.title('q0,t=%d'%i); plt.figure()
+sns.heatmap(value1[:,:,0,i])  
+plt.title('q1,t=%d'%i); plt.figure()
+sns.heatmap(value0[:,:,0,i]-value1[:,:,0,i])      
+plt.title('q0-q1,t=%d'%i); plt.figure()
+sns.heatmap(policy[:,:,0,i])     
+plt.title('policy,t=%d'%i); plt.figure()
+
+#%%
+plt.plot(value0[0,:,0,9])
+plt.plot(value1[0,:,0,9])
