@@ -38,9 +38,10 @@ I_N = np.array([0,1]) #states to choose at N (H0 or H1)
 PX_s = np.array([[[etaL,1-etaL,etaL],[1-etaL,etaL,1-etaL]],[[etaH,1-etaH,etaH],[1-etaH,etaH,1-etaH]]])
 R = np.array([[1,0],[0,1]]) 
 #R00,R01,R10,R11 (Rij = rewards on choosing Hi when Hj is true)
-c00 = 0.00; c10 = 0.00; c01 = 0.00; c11 = 0.00
+c00 = 0.00; c10 = 0.00; c01 = 0.01; c11 = 0.01
 #magnitude of costs on going from i to j internal states
 c = np.array([[c00,c01],[c10,c11]])
+
 
 p_signal = 0.5; q = 1.0
 
@@ -284,31 +285,31 @@ print(time.perf_counter()-start)
 
 
 #%%
-i = 9
+i = 10
 plt.imshow(value[:,:,0,i], extent=[0,1,1,0]);
 plt.ylabel('belief for signal'); plt.xlabel('belief for postsignal')
-plt.title('value, t=%d, q=%1.1f'%(i,q)); plt.colorbar(); plt.figure()
+plt.title('value, t=%d,q=%1.1f,costi1=%1.2f'%(i,q,c11)); plt.colorbar(); plt.figure()
 
 plt.imshow(value0[:,:,0,i], extent=[0,1,1,0]);
 plt.ylabel('belief for signal'); plt.xlabel('belief for postsignal')
-plt.title('q0, t=%d, q=%1.1f'%(i,q)); plt.colorbar(); plt.figure()
+plt.title('q0, t=%d,q=%1.1f,costi1=%1.2f'%(i,q,c11)); plt.colorbar(); plt.figure()
 
 plt.imshow(value1[:,:,0,i], extent=[0,1,1,0]);
 plt.ylabel('belief for signal'); plt.xlabel('belief for postsignal')
-plt.title('q1, t=%d, q=%1.1f'%(i,q)); plt.colorbar(); plt.figure()
+plt.title('q1, t=%d,q=%1.1f,costi1=%1.2f'%(i,q,c11)); plt.colorbar(); plt.figure()
 
 plt.imshow(value0[:,:,0,i]-value1[:,:,0,i], extent=[0,1,1,0]);
 plt.ylabel('belief for signal'); plt.xlabel('belief for postsignal')
-plt.title('q0-q1, t=%d, q=%1.1f'%(i,q)); plt.colorbar(); plt.figure()
+plt.title('q0-q1, t=%d,q=%1.1f,costi1=%1.2f'%(i,q,c11)); plt.colorbar(); plt.figure()
 
 colorsList = ['purple', 'yellow', 'red']
 cmap = matplotlib.colors.ListedColormap(colorsList)
 plt.imshow(policy[:,:,0,i], extent=[0,1,1,0], cmap=cmap);
 plt.ylabel('belief for signal'); plt.ylabel('belief for postsignal')
-plt.title('policy, t=%d, q=%1.1f'%(i,q)); plt.colorbar(); 
+plt.title('policy, t=%d,q=%1.1f,costi1=%1.2f'%(i,q,c11)); plt.colorbar(); 
 
 #%%
-t = 8
+t = 9
 plt.plot(b,value0[0,:,0,t], label = 'value0, b(1)=0, t=%d'%(t))
 plt.plot(b,value1[0,:,0,t], label = 'value1, b(1)=0, t=%d'%(t))
 plt.legend(); plt.xlabel('b(2)'); plt.figure()
