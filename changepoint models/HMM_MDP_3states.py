@@ -30,7 +30,7 @@ b = np.arange(0.0,1.+2*db,db) #discrete belief space use for b0,b1 and b2
 rounding = 3;
 b = np.round(b,rounding)
 
-etaL = 0.5; etaH = 1.0 #two levels of eta for the two internal states
+etaL = 0.5; etaH = 0.9 #two levels of eta for the two internal states
 I = np.array([0,1]) #internal state space : choose low or high eta levels
 O = np.array([0,1]) #observation space: 0/1
 s = np.array([0,1,2]) #environmental state space
@@ -38,11 +38,11 @@ I_N = np.array([0,1]) #states to choose at N (H0 or H1)
 PX_s = np.array([[[etaL,1-etaL,etaL],[1-etaL,etaL,1-etaL]],[[etaH,1-etaH,etaH],[1-etaH,etaH,1-etaH]]])
 R = np.array([[1,0],[0,1]]) 
 #R00,R01,R10,R11 (Rij = rewards on choosing Hi when Hj is true)
-c00 = 0.00; c10 = 0.00; c01 = 0.01; c11 = 0.01
+c00 = 0.00; c10 = 0.00; c01 = 0.00; c11 = 0.00
 #magnitude of costs on going from i to j internal states
 c = np.array([[c00,c01],[c10,c11]])
 
-p_signal = 0.5; q = 0.1
+p_signal = 0.5; q = 0.3
 
 n = 10 #trial length
 
@@ -284,28 +284,31 @@ print(time.perf_counter()-start)
 
 
 #%%
-i = 10
+i = 9
 plt.imshow(value[:,:,0,i], extent=[0,1,1,0]);
 plt.ylabel('belief for signal'); plt.xlabel('belief for postsignal')
-plt.title('value, t=%d,q=%1.1f,costi1=%1.2f'%(i,q,c11)); plt.colorbar(); plt.figure()
+plt.title('value, t=%d,q=%1.1f,costi1=%1.2f, etaL=%1.1f,etaH=%1.1f'%(i,
+           q,c11, etaL,etaH)); plt.colorbar(); plt.figure()
 
 plt.imshow(value0[:,:,0,i], extent=[0,1,1,0]);
 plt.ylabel('belief for signal'); plt.xlabel('belief for postsignal')
-plt.title('q0, t=%d,q=%1.1f,costi1=%1.2f'%(i,q,c11)); plt.colorbar(); plt.figure()
+plt.title('q0, t=%d,q=%1.1f,costi1=%1.2f,eta=%1.1f'%(i,q,c11,etaL)); plt.colorbar(); plt.figure()
 
 plt.imshow(value1[:,:,0,i], extent=[0,1,1,0]);
 plt.ylabel('belief for signal'); plt.xlabel('belief for postsignal')
-plt.title('q1, t=%d,q=%1.1f,costi1=%1.2f'%(i,q,c11)); plt.colorbar(); plt.figure()
+plt.title('q1, t=%d,q=%1.1f,costi1=%1.2f,eta=%1.1f'%(i,q,c11,etaH)); plt.colorbar(); plt.figure()
 
 plt.imshow(value0[:,:,0,i]-value1[:,:,0,i], extent=[0,1,1,0]);
 plt.ylabel('belief for signal'); plt.xlabel('belief for postsignal')
-plt.title('q0-q1, t=%d,q=%1.1f,costi1=%1.2f'%(i,q,c11)); plt.colorbar(); plt.figure()
+plt.title('q0-q1, t=%d,q=%1.1f, costi1=%1.2f, etaL=%1.1f,etaH=%1.1f'%(i,
+           q,c11, etaL,etaH)); plt.colorbar(); plt.figure()
 
 colorsList = ['purple', 'yellow', 'red']
 cmap = matplotlib.colors.ListedColormap(colorsList)
 plt.imshow(policy[:,:,0,i], extent=[0,1,1,0], cmap=cmap);
-plt.ylabel('belief for signal'); plt.ylabel('belief for postsignal')
-plt.title('policy, t=%d,q=%1.1f,costi1=%1.2f'%(i,q,c11)); plt.colorbar(); 
+plt.ylabel('belief for signal'); plt.xlabel('belief for postsignal')
+plt.title('policy, t=%d,q=%1.1f,costi1=%1.2f, etaL=%1.1f,etaH=%1.1f'%(i,
+           q,c11, etaL,etaH)); plt.colorbar(); 
 
 #%%
 t = 9
