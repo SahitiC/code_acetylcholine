@@ -46,7 +46,7 @@ p_signal = 0.5; q = 1.0
 
 n = 10 #trial length
 
-compare = 1; beta = 30; 
+compare = 1; beta = 40; 
 
 #%%
 
@@ -54,9 +54,7 @@ value = np.full((len(b),len(b),len(I),n+1),np.nan) #value for each state for all
 policy = np.full((len(b),len(b),len(I),n+1),np.nan) #corresponding policy
 
 value0 = np.full((len(b),len(b),len(I),n+1),np.nan) #value for each state for all n time steps
-policy0 = np.full((len(b),len(b),len(I),n+1),np.nan) #corresponding policy
 value1 = np.full((len(b),len(b),len(I),n+1),np.nan) #value for each state for all n time steps
-policy1 = np.full((len(b),len(b),len(I),n+1),np.nan) #corresponding policy
 
 
 start = time.perf_counter()
@@ -284,11 +282,11 @@ print(time.perf_counter()-start)
 
 
 #%%
-i = 8
+i = 9
 plt.imshow(value[:,:,0,i], extent=[0,1,1,0]);
 plt.ylabel('belief for signal'); plt.xlabel('belief for postsignal')
-plt.title('value, t=%d,q=%1.1f,costi1=%1.2f, etaL=%1.1f,etaH=%1.1f'%(i,
-           q,c11, etaL,etaH)); plt.colorbar(); plt.figure()
+plt.title('value, t=%d,q=%1.1f,costi1=%1.2f,etaL=%1.1f,etaH=%1.1f'%(i,
+            q,c11,etaL,etaH)); plt.colorbar(); plt.figure()
 
 plt.imshow(value0[:,:,0,i], extent=[0,1,1,0]);
 plt.ylabel('belief for signal'); plt.xlabel('belief for postsignal')
@@ -300,18 +298,24 @@ plt.title('q1, t=%d,q=%1.1f,costi1=%1.2f,eta=%1.1f'%(i,q,c11,etaH)); plt.colorba
 
 plt.imshow(value0[:,:,0,i]-value1[:,:,0,i], extent=[0,1,1,0]);
 plt.ylabel('belief for signal'); plt.xlabel('belief for postsignal')
-plt.title('q0-q1, t=%d,q=%1.1f, costi1=%1.2f, etaL=%1.1f,etaH=%1.1f'%(i,
-           q,c11, etaL,etaH)); plt.colorbar(); plt.figure()
+plt.title('q0-q1, t=%d,q=%1.1f,costi1=%1.2f,etaL=%1.1f,etaH=%1.1f'%(i,
+                 q,c11,etaL,etaH)); plt.colorbar(); plt.figure()
+
 
 colorsList = ['purple', 'yellow', 'red']
-cmap = matplotlib.colors.ListedColormap(colorsList)
+#cmap = matplotlib.colors.ListedColormap(colorsList)
+cmap = matplotlib.cm.get_cmap('viridis', 3)
+norm = matplotlib.colors.BoundaryNorm(np.arange(0, 2, 1), cmap.N)
 plt.imshow(policy[:,:,0,i], extent=[0,1,1,0], cmap=cmap);
 plt.ylabel('belief for signal'); plt.xlabel('belief for postsignal')
-plt.title('policy, t=%d,q=%1.1f,costi1=%1.2f, etaL=%1.1f,etaH=%1.1f'%(i,
-           q,c11, etaL,etaH)); plt.colorbar(); 
+plt.title('policy, t=%d,q=%1.1f,costi1=%1.2fetaL=%1.1f,etaH=%1.1f'%(i,
+                 q,c11,etaL,etaH)); 
+mat = plt.matshow(policy[:,:,0,i],cmap=cmap,vmin =-0.5,vmax = 2.5 )
+plt.colorbar(mat,ticks=np.linspace(0,2,3)); 
+
 
 #%%
-t = 9
+t = 8
 plt.plot(b,value0[0,:,0,t], label = 'value0, b(1)=0, t=%d'%(t))
 plt.plot(b,value1[0,:,0,t], label = 'value1, b(1)=0, t=%d'%(t))
 plt.legend(); plt.xlabel('b(2)'); plt.figure()
