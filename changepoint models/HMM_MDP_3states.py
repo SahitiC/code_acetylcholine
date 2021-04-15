@@ -30,7 +30,7 @@ b = np.arange(0.0,1.+2*db,db) #discrete belief space use for b0,b1 and b2
 rounding = 3;
 b = np.round(b,rounding)
 
-etaL = 0.5; etaH = 0.9 #two levels of eta for the two internal states
+etaL = 0.5; etaH = 0.8 #two levels of eta for the two internal states
 I = np.array([0,1]) #internal state space : choose low or high eta levels
 O = np.array([0,1]) #observation space: 0/1
 s = np.array([0,1,2]) #environmental state space
@@ -42,11 +42,11 @@ c00 = 0.00; c10 = 0.00; c01 = 0.00; c11 = 0.00
 #magnitude of costs on going from i to j internal states
 c = np.array([[c00,c01],[c10,c11]])
 
-p_signal = 0.5; q = 0.3
+p_signal = 0.5; q = 1.0
 
 n = 10 #trial length
 
-compare = 1; beta = 50; 
+compare = 1; beta = 30; 
 
 #%%
 
@@ -284,7 +284,7 @@ print(time.perf_counter()-start)
 
 
 #%%
-i = 9
+i = 8
 plt.imshow(value[:,:,0,i], extent=[0,1,1,0]);
 plt.ylabel('belief for signal'); plt.xlabel('belief for postsignal')
 plt.title('value, t=%d,q=%1.1f,costi1=%1.2f, etaL=%1.1f,etaH=%1.1f'%(i,
