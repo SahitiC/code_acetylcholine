@@ -25,7 +25,7 @@ def softmax(x, beta):
 
 
 #%%
-db = 0.001
+db = 0.01
 b = np.arange(0.0,1.+2*db,db) #discrete belief space use for b0,b1 and b2
 rounding = 3;
 b = np.round(b,rounding)
@@ -38,17 +38,19 @@ I_N = np.array([0,1]) #states to choose at N (H0 or H1)
 PX_s = np.array([[[etaL,1-etaL,etaL],[1-etaL,etaL,1-etaL]],[[etaH,1-etaH,etaH],[1-etaH,etaH,1-etaH]]])
 R = np.array([[1,0],[0,1]]) 
 #R00,R01,R10,R11 (Rij = rewards on choosing Hi when Hj is true)
-c00 = 0.00; c10 = 0.00; c01 = 0.03; c11 = 0.03
+
+c00 = 0.00; c10 = 0.00; c01 = 0.02; c11 = 0.02
 #magnitude of costs on going from i to j internal states
 c = np.array([[c00,c01],[c10,c11]])
 
-p_signal = 0.5; q = 0.1
+p_signal = 0.5; q = 0.3
 
 n = 10 #trial length
 
-compare = 1; beta = 30; 
+compare = 1; beta = 50; 
 
-#%%
+
+ #%%
 
 value = np.full((len(b),len(b),len(I),n+1),np.nan) #value for each state for all n time steps
 policy = np.full((len(b),len(b),len(I),n+1),np.nan) #corresponding policy
@@ -283,7 +285,7 @@ print(time.perf_counter()-start)
 
 #%%
 
-i = 6
+i = 10
 plt.imshow(value[:,:,0,i], extent=[0,1,1,0]);
 plt.ylabel('belief for signal'); plt.xlabel('belief for postsignal')
 #plt.title('value, t=%d'%(i,)); plt.colorbar(); plt.figure()
@@ -311,11 +313,13 @@ plt.ylabel('belief for signal'); plt.xlabel('belief for postsignal')
 #plt.title('policy, t=%d'%(i,)); 
 plt.title('policy, t=%d,q=%1.1f,costi1=%1.2fetaL=%1.1f,etaH=%1.1f'%(i,
                 q,c11,etaL,etaH)); 
+
 mat = plt.imshow(policy[:,:,0,i],cmap=cmap,vmin =-0.5,vmax = 2.5, extent=[0,1,1,0])
 plt.colorbar(mat,ticks=np.linspace(0,2,3)); 
 
 
 #%%
+#slices of value functions at specific b(1)
 t = 8
 plt.plot(b,value0[0,:,0,t], label = 'value0, b(1)=0, t=%d'%(t))
 plt.plot(b,value1[0,:,0,t], label = 'value1, b(1)=0, t=%d'%(t))
@@ -332,5 +336,181 @@ plt.legend(); plt.xlabel('b(2)'); plt.figure()
 
 
 #%%
-plt.plot(value0[0,:,0,9])
-plt.plot(value1[0,:,0,9])
+#projections of these value functions on particular belief states
+plt.imshow(value[[20,20,20,50,50,80],
+                 [20,50,80,20,50,20],0,:])
+plt.yticks(np.arange(6),['[0.2,0.2]','[0.2,0.5]','[0.2,0.8]',
+                         '[0.5,0.2]','[0.5,0.5]','[0.8,0.2]'])
+plt.xlabel('time'); plt.ylabel('[b(1),b(2)]')
+plt.colorbar()
+
+#%%
+#forward run
+#inference with executing the policy: 3 states
+def generate_trialPolicy(trial_length, p_signal, q,
+                         signal_length_type,signal_length):
+    n = trial_length
+    trial_signal = np.random.binomial(1,p_signal) #trial is signal/non signal with prob 0.5
+    
+    if signal_length_type == 0:
+        start_signal = np.random.randint(0, n) #index of sample when signal begins (on signal trial)
+        end_signal = np.random.geometric(q, size=1) #time points for which signal will stay on
+    elif signal_length_type == 1:
+        start_signal = np.random.randint(0, n-signal_length+1) #index of sample when signal begins (on signal trial)
+        end_signal = signal_length #length of signal is fixed
+    
+    trial = np.full((int(round(n))+1,1),0);#environmental states within a trial
+    if trial_signal == 1: 
+        r = min(end_signal, n-start_signal)
+        trial[start_signal+1:start_signal+int(r)+1] = np.full((int(r),1),1)
+        trial[start_signal+int(r)+1:n+1] = np.full((n-start_signal-int(r),1),2) 
+              
+    return trial
+
+def inferenceDiscretePolicy(trial,trial_length,p_signal,etaL,etaH,
+                            value0,value1,cost,b,db,beta,rounding):
+        
+    n = trial_length  
+    
+    observation = np.full((int(round(n)),1),0)
+    posterior = np.full((n+1,3),0.0) #posterior for states 0,1,2
+    posterior[0,:] = [1.0,0.0,0.0] # posterior at j = -1
+    posterior[0,:] = posterior[0,:]/(np.sum(posterior[0,:]))
+    #array for internal state and eta
+    internalState = np.full((n+1,1),0); #IS 
+    internalState[0] = 0 #initialise initial IS at j=-1 ot t=0
+    etaArr = np.full((n,1),0.0) #corresponding eta (determined by IS)
+    action = np.full((n,1),0); #array for action = IS for each t>0
+    eta = [etaL,etaH] #the two eta levels
+    
+    
+    for j in range(n): #t=j+1
+        
+        #choosing action
+        idx = np.array(posterior[j,1:]/db, dtype=int)
+        if np.sum(idx) < int(1/db):
+            q0 = interpolate2d(posterior[j,1],b[idx[0]],b[idx[0]+1],db,
+                               posterior[j,2],b[idx[1]],b[idx[1]+1],db,
+                               value0[idx[0],idx[1],internalState[j][0],j],
+                               value0[idx[0],idx[1]+1,internalState[j][0],j],
+                               value0[idx[0]+1,idx[1],internalState[j][0],j],
+                               value0[idx[0]+1,idx[1]+1,internalState[j][0],j])
+            q1 = interpolate2d(posterior[j,1],b[idx[0]],b[idx[0]+1],db,
+                               posterior[j,2],b[idx[1]],b[idx[1]+1],db,
+                               value1[idx[0],idx[1],internalState[j][0],j],
+                               value1[idx[0],idx[1]+1,internalState[j][0],j],
+                               value1[idx[0]+1,idx[1],internalState[j][0],j],
+                               value1[idx[0]+1,idx[1]+1,internalState[j][0],j])
+            
+        elif np.sum(idx) >= int(1/db):
+            q0 = value0[idx[0],idx[1],internalState[j][0],j]
+            q1 = value1[idx[0],idx[1],internalState[j][0],j]
+            
+        Q = np.array([q0,q1])
+        r = np.round(softmax(Q,beta),rounding)
+        if r[0]==r[1]:internalState[j+1]=1; action[j] = 2; etaArr[j] = eta[1]
+        elif r[0]>r[1]:internalState[j+1]=0; action[j] = 0; etaArr[j] = eta[0]
+        elif r[0]<r[1]:internalState[j+1]=1; action[j] = 1;  etaArr[j] = eta[1] 
+
+        #observation based on new internal state
+        if trial[j+1] == 0:
+            observation[j] = np.random.binomial(1,1-etaArr[j])
+        elif trial[j+1] == 1:
+            observation[j] = np.random.binomial(1,etaArr[j])
+        elif trial[j+1] == 2:
+            observation[j] = np.random.binomial(1,1-etaArr[j])
+
+        #transition matrix
+        probStart = 1/((n/p_signal)-j)
+        transition_matrix = np.array([[1-probStart,probStart,0],
+                                      [0,1-q,q],[0,0,1]])
+        #emission matrix and probability
+        emission_matrix = np.array([[etaArr[j][0],1-etaArr[j][0],etaArr[j][0]],
+                                    [1-etaArr[j][0],etaArr[j][0],1-etaArr[j][0]]])
+        emission_probability = emission_matrix[observation[j][0]]
+        
+        #belief update
+        posterior[j+1,:] = emission_probability*np.matmul(posterior[j,:],transition_matrix)
+        posterior[j+1,:] = posterior[j+1,:]/(np.sum(posterior[j+1,:]))
+        
+
+    return observation, posterior, internalState, action
+
+def generate_responseDiscretePolicy(trial,posterior):
+    response = 10
+    hit = 0; miss = 0; cr = 0; fa = 0
+    trial_signal = 0
+    if sum(trial) > 0: trial_signal = 1
+    inferred_state = np.where(posterior[len(trial)-1,:] == max(
+        posterior[len(trial)-1,:]))[0]
+    if inferred_state ==0:
+        response = 0;
+        if trial_signal==0: cr =cr+1
+        elif trial_signal==1: miss =miss+1
+    elif inferred_state==1:
+        response = 1;
+        if trial_signal==0: fa=fa+1
+        elif trial_signal==1: hit=hit+1
+    
+    return inferred_state,response, hit, miss, cr, fa  
+
+#%%
+trial_length = 10;
+p_signal = 0.5; q = 0.3
+etaL = 0.5; etaH = 0.9
+signal_length_type = 0; signal_length = 10
+db = 0.01
+b = np.arange(0.0,1.+2*db,db) #discrete belief space use for b0,b1 and b2
+rounding = 2;
+b = np.round(b,rounding)
+cost = np.array([[0.0,0.0],[0.02,0.02]])
+
+trial = generate_trialPolicy(trial_length, p_signal, q,
+                         signal_length_type,signal_length)
+observation, posterior, internalState, action = inferenceDiscretePolicy(trial,trial_length,p_signal,etaL,etaH,
+                            value0,value1,cost,b,db,beta,rounding)
+inferred_state,response,hit,miss,cr,fa = generate_responseDiscretePolicy(trial,posterior)
+
+
+#%%
+fig,ax = plt.subplots(2,1)
+t = np.arange(0,trial_length+1,1)
+ax[0].plot(t[1:],trial[1:], label='underlying signal')
+ax[0].scatter(t[1:],observation, label='observations',color ='orange')
+ax[0].plot(t,posterior[:,1], label='posterior for s=1')
+ax[0].plot(t,posterior[:,2], label='posterior for s=2')
+
+ax[1].plot(t,internalState[:], label= 'internal state', linestyle ='dashed', 
+           marker ='o')
+ax[1].plot(t[1:],action, label = 'action', linestyle ='dashed', 
+           marker ='o')
+
+ax[0].legend(bbox_to_anchor=(1.05, 1), loc='upper left');
+ax[1].legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+
+#%%
+#obselete code
+func = generate_trialPolicy  
+trial_length = 10 #trial length
+p_signal = 0.5 #prob of signal trial
+eta_0 = 0.7; eta_1 = 0.7; eta_2 = 0.7 #means of gaussian for observations in states 0,1,2
+q = 0.1 #constant probability of leaving
+nTrials = 1
+signal_length_type = 0; signal_length = 10
+hit =0; cr=0; miss=0; fa=0
+   
+trial_type = np.full((nTrials,3),0)
+for k in range(nTrials):
+    trial = func(trial_length, p_signal, q, signal_length_type, signal_length)
+    observation, posterior, internalState, action = inferenceDiscretePolicy(trial,trial_length,p_signal,etaL,etaH,
+                                value0,value1,cost,b,db,beta,rounding)
+    inferred_state,response,hit,miss,cr,fa = generate_responseDiscretePolicy(trial,posterior)
+
+    trial_signal = 0
+    if sum(trial) > 0: trial_signal =1 
+    if trial_signal == 1:
+        trial_type[k,0] = 1; 
+        trial_type[k,1] = np.intersect1d(np.where(trial[1:] == 1)[0], 
+                                     np.where(trial[:-1] == 0)[0]) #start signal
+        trial_type[k,2] = len(np.where(trial == 1)[0]) #signal length
+    
