@@ -25,12 +25,12 @@ def softmax(x, beta):
 
 
 #%%
-db = 0.01
+db = 0.001
 b = np.arange(0.0,1.+2*db,db) #discrete belief space use for b0,b1 and b2
 rounding = 3;
 b = np.round(b,rounding)
 
-etaL = 0.5; etaH = 0.9 #two levels of eta for the two internal states
+etaL = 0.5; etaH = 0.7 #two levels of eta for the two internal states
 I = np.array([0,1]) #internal state space : choose low or high eta levels
 O = np.array([0,1]) #observation space: 0/1
 s = np.array([0,1,2]) #environmental state space
@@ -39,11 +39,11 @@ PX_s = np.array([[[etaL,1-etaL,etaL],[1-etaL,etaL,1-etaL]],[[etaH,1-etaH,etaH],[
 R = np.array([[1,0],[0,1]]) 
 #R00,R01,R10,R11 (Rij = rewards on choosing Hi when Hj is true)
 
-c00 = 0.00; c10 = 0.00; c01 = 0.02; c11 = 0.02
+c00 = 0.00; c10 = 0.00; c01 = 0.01; c11 = 0.01
 #magnitude of costs on going from i to j internal states
 c = np.array([[c00,c01],[c10,c11]])
 
-p_signal = 0.5; q = 0.3
+p_signal = 0.5; q = 0.1
 
 n = 10 #trial length
 
@@ -285,7 +285,7 @@ print(time.perf_counter()-start)
 
 #%%
 
-i = 10
+i = 7
 plt.imshow(value[:,:,0,i], extent=[0,1,1,0]);
 plt.ylabel('belief for signal'); plt.xlabel('belief for postsignal')
 #plt.title('value, t=%d'%(i,)); plt.colorbar(); plt.figure()
@@ -456,14 +456,14 @@ def generate_responseDiscretePolicy(trial,posterior):
 
 #%%
 trial_length = 10;
-p_signal = 0.5; q = 0.3
+p_signal = 0.5; q = 0.1
 etaL = 0.5; etaH = 0.9
 signal_length_type = 0; signal_length = 10
-db = 0.01
+db = 0.001
 b = np.arange(0.0,1.+2*db,db) #discrete belief space use for b0,b1 and b2
-rounding = 2;
+rounding = 3;
 b = np.round(b,rounding)
-cost = np.array([[0.0,0.0],[0.02,0.02]])
+cost = np.array([[0.0,0.0],[0.03,0.03]])
 
 trial = generate_trialPolicy(trial_length, p_signal, q,
                          signal_length_type,signal_length)
@@ -493,9 +493,8 @@ ax[1].legend(bbox_to_anchor=(1.05, 1), loc='upper left')
 func = generate_trialPolicy  
 trial_length = 10 #trial length
 p_signal = 0.5 #prob of signal trial
-eta_0 = 0.7; eta_1 = 0.7; eta_2 = 0.7 #means of gaussian for observations in states 0,1,2
 q = 0.1 #constant probability of leaving
-nTrials = 1
+nTrials = 1000
 signal_length_type = 0; signal_length = 10
 hit =0; cr=0; miss=0; fa=0
    
