@@ -588,11 +588,11 @@ plt.figure()
 
 #%%
 #old/obsolete code
-func = generate_trialHMMDiscrete  
+func = generate_trialDiscrete  
 trial_length = 10 #trial length
 p_signal = 0.5 #prob of signal trial
 eta_0 = 0.7; eta_1 = 0.7; eta_2 = 0.7 #means of gaussian for observations in states 0,1,2
-q = 0.1 #constant probability of leaving
+q = 0.01 #constant probability of leaving
 nTrials = 3000
 signal_length_type = 0; signal_length = 10
 hit =0; cr=0; miss=0; fa=0
