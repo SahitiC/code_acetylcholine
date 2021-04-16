@@ -27,7 +27,7 @@ def softmax(x, beta):
 #%%
 db = 0.01
 b = np.arange(0.0,1.+2*db,db) #discrete belief space use for b0,b1 and b2
-rounding = 3;
+rounding = 2;
 b = np.round(b,rounding)
 
 etaL = 0.5; etaH = 0.9 #two levels of eta for the two internal states
@@ -359,7 +359,7 @@ def generate_trialPolicy(trial_length, p_signal, q,
         trial[start_signal+1:start_signal+int(r)+1] = np.full((int(r),1),1)
         trial[start_signal+int(r)+1:n+1] = np.full((n-start_signal-int(r),1),2) 
               
-    return trial
+    return trial, trial_signal
 
 def inferenceDiscretePolicy(trial,trial_length,p_signal,etaL,etaH,
                             value0,value1,cost,b,db,beta,rounding):
@@ -459,7 +459,7 @@ rounding = 2;
 b = np.round(b,rounding)
 cost = np.array([[0.0,0.0],[0.02,0.02]])
 
-trial = generate_trialPolicy(trial_length, p_signal, q,
+trial, trial_signal = generate_trialPolicy(trial_length, p_signal, q,
                          signal_length_type,signal_length)
 observation, posterior, internalState, action = inferenceDiscretePolicy(trial,trial_length,p_signal,etaL,etaH,
                             value0,value1,cost,b,db,beta,rounding)
@@ -481,6 +481,58 @@ ax[1].plot(t[1:],action, label = 'action', linestyle ='dashed',
 
 ax[0].legend(bbox_to_anchor=(1.05, 1), loc='upper left');
 ax[1].legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+
+
+#%%
+
+trial_length = 10;
+p_signal = 0.5; q = 0.3
+etaL = 0.5; etaH = 0.9
+signal_length_type = 0; signal_length = 10
+db = 0.01
+b = np.arange(0.0,1.+2*db,db) #discrete belief space use for b0,b1 and b2
+rounding = 2;
+b = np.round(b,rounding)
+cost = np.array([[0.0,0.0],[0.02,0.02]])
+
+nTrials = 1000
+posteriorTrials = np.full((nTrials,trial_length+1,3),0.0)
+actionTrials = np.full((nTrials,trial_length,1),0.0)
+trialType = np.full((nTrials,1),0.0)
+
+for nT in range(nTrials):
+    trial, trial_signal = generate_trialPolicy(trial_length, p_signal, q,
+                             signal_length_type,signal_length)
+    observation, posterior, internalState, action = inferenceDiscretePolicy(trial,trial_length,p_signal,etaL,etaH,
+                                value0,value1,cost,b,db,beta,rounding)
+    inferred_state,response,hit,miss,cr,fa = generate_responseDiscretePolicy(trial,posterior)
+    posteriorTrials[nT,:,:] = posterior
+    trialType[nT] = trial_signal
+    actionTrials[nT,:,:] = action
+    
+#%%
+t = np.arange(0,trial_length+1,1)
+#for signal trials
+avgPosterior = np.average(posteriorTrials[np.where(trialType==1)[0],:,:],axis=0)
+avgAction = np.average(actionTrials[np.where(trialType==1)[0],:,:],axis=0)
+plt.plot(t,avgPosterior[:,1],label ='b(1)') 
+plt.plot(t,avgPosterior[:,2],label ='b(2)') 
+plt.plot(t[1:],avgAction[:,0],label ='action',marker='o')
+plt.legend()
+plt.xlabel('time'); plt.title('Avg runs--signal trials, etaH=%1.2f, etaL=%1.2f, ci1=%1.2f,q=%1.1f'
+                              %(etaH,etaL,c11,q)) 
+
+plt.figure()
+ 
+#for signal trials
+avgPosterior = np.average(posteriorTrials[np.where(trialType==0)[0],:,:],axis=0)
+avgAction = np.average(actionTrials[np.where(trialType==0)[0],:,:],axis=0)
+plt.plot(t,avgPosterior[:,1],label ='b(1)') 
+plt.plot(t,avgPosterior[:,2],label ='b(2)') 
+plt.plot(t[1:],avgAction[:,0],label ='action',marker='o')
+plt.legend()
+plt.xlabel('time'); plt.title('Avg runs--non-signal trials, etaH=%1.2f, etaL=%1.2f, ci1=%1.2f,q=%1.1f'
+                              %(etaH,etaL,c11,q))       
 
 #%%
 #obselete code
