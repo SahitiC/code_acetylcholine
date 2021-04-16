@@ -301,10 +301,10 @@ plt.ylabel('belief for signal'); plt.xlabel('belief for postsignal')
 plt.title('Q0-Q1, t=%d,q=%1.1f,costi1=%1.2f,etaL=%1.1f,etaH=%1.1f'%(i,
                  q,c11,etaL,etaH)); plt.colorbar(); plt.figure()
 
+
 #cmap = matplotlib.colors.ListedColormap(colorsList)
 cmap = matplotlib.cm.get_cmap('viridis', 3)
 norm = matplotlib.colors.BoundaryNorm(np.arange(0, 2, 1), cmap.N)
-plt.imshow(policy[:,:,0,i], extent=[0,1,1,0], cmap=cmap);
 plt.ylabel('belief for signal'); plt.xlabel('belief for postsignal')
 plt.title('policy, t=%d,q=%1.1f,costi1=%1.2fetaL=%1.1f,etaH=%1.1f'%(i,
                  q,c11,etaL,etaH)); 
