@@ -38,6 +38,7 @@ I_N = np.array([0,1]) #states to choose at N (H0 or H1)
 PX_s = np.array([[[etaL,1-etaL,etaL],[1-etaL,etaL,1-etaL]],[[etaH,1-etaH,etaH],[1-etaH,etaH,1-etaH]]])
 R = np.array([[1,0],[0,1]]) 
 #R00,R01,R10,R11 (Rij = rewards on choosing Hi when Hj is true)
+
 c00 = 0.00; c10 = 0.00; c01 = 0.02; c11 = 0.02
 #magnitude of costs on going from i to j internal states
 c = np.array([[c00,c01],[c10,c11]])
@@ -47,6 +48,7 @@ p_signal = 0.5; q = 0.3
 n = 10 #trial length
 
 compare = 1; beta = 50; 
+
 
  #%%
 
@@ -282,9 +284,11 @@ print(time.perf_counter()-start)
 
 
 #%%
+
 i = 10
 plt.imshow(value[:,:,0,i], extent=[0,1,1,0]);
 plt.ylabel('belief for signal'); plt.xlabel('belief for postsignal')
+#plt.title('value, t=%d'%(i,)); plt.colorbar(); plt.figure()
 plt.title('value, t=%d,q=%1.1f,costi1=%1.2f,etaL=%1.1f,etaH=%1.1f'%(i,
             q,c11,etaL,etaH)); plt.colorbar(); plt.figure()
 
@@ -306,8 +310,10 @@ plt.title('Q0-Q1, t=%d,q=%1.1f,costi1=%1.2f,etaL=%1.1f,etaH=%1.1f'%(i,
 cmap = matplotlib.cm.get_cmap('viridis', 3)
 norm = matplotlib.colors.BoundaryNorm(np.arange(0, 2, 1), cmap.N)
 plt.ylabel('belief for signal'); plt.xlabel('belief for postsignal')
+#plt.title('policy, t=%d'%(i,)); 
 plt.title('policy, t=%d,q=%1.1f,costi1=%1.2fetaL=%1.1f,etaH=%1.1f'%(i,
-                 q,c11,etaL,etaH)); 
+                q,c11,etaL,etaH)); 
+
 mat = plt.imshow(policy[:,:,0,i],cmap=cmap,vmin =-0.5,vmax = 2.5, extent=[0,1,1,0])
 plt.colorbar(mat,ticks=np.linspace(0,2,3)); 
 
