@@ -266,6 +266,14 @@ rounding = 3;
 b = np.round(b,rounding)
 
 etaL = 0.6; etaH = 0.9 #two levels of eta for the two internal states
+c00 = 0.00; c10 = 0.00; c01 = 0.02; c11 = 0.02
+#magnitude of costs on going from i to j internal states
+
+cost = np.array([[c00,c01],[c10,c11]])
+p_signal = 0.5; q = 0.05
+trial_length = 100 #trial length
+
+compare = 1; beta = 50; 
 
 I = np.array([0,1]) #internal state space : choose low or high eta levels
 O = np.array([0,1]) #observation space: 0/1
@@ -275,21 +283,18 @@ PX_s = np.array([[[etaL,1-etaL,etaL],[1-etaL,etaL,1-etaL]],[[etaH,1-etaH,etaH],[
 R = np.array([[1,0],[0,1]]) 
 #R00,R01,R10,R11 (Rij = rewards on choosing Hi when Hj is true)
 
-c00 = 0.00; c10 = 0.00; c01 = 0.02; c11 = 0.02
-#magnitude of costs on going from i to j internal states
 
-cost = np.array([[c00,c01],[c10,c11]])
-p_signal = 0.2; q = 0.3
-trial_length = 10 #trial length
 
-compare = 1; beta = 50; 
+start  = time.perf_counter()
 
 value,value0,value1,policy = getPolicy(b,db,rounding,etaL,etaH,I,O,s,I_N,PX_s,R,cost,p_signal,q,
               trial_length,compare,beta)
             
+print(time.perf_counter()-start)
+
 #%%
 
-i = 9; j = 0
+i = 0; j = 0
 plt.imshow(value[:,:,j,i], extent=[0,1,1,0]);
 plt.ylabel('belief for signal'); plt.xlabel('belief for postsignal')
 #plt.title('value, t=%d'%(i,)); plt.colorbar(); plt.figure()
