@@ -24,18 +24,17 @@ def softmax(x, beta):
     return np.exp(beta*x) / np.sum(np.exp(beta*x), axis=0)
 
 
-
-#%%
+ #%%
+ 
 def getPolicy(b,db,rounding,etaL,etaH,I,O,s,I_N,PX_s,R,cost,p_signal,q,
               trial_length,compare,beta):
-    c = cost
-    n = trial_length 
+    c=cost
+    n=trial_length
     value = np.full((len(b),len(b),len(I),n+1),np.nan) #value for each state for all n time steps
     policy = np.full((len(b),len(b),len(I),n+1),np.nan) #corresponding policy
     
     value0 = np.full((len(b),len(b),len(I),n+1),np.nan) #value for each state for all n time steps
     value1 = np.full((len(b),len(b),len(I),n+1),np.nan) #value for each state for all n time steps
-    
     
     
     #optimal policy for last time step where IS doesn't matter
@@ -55,16 +54,16 @@ def getPolicy(b,db,rounding,etaL,etaH,I,O,s,I_N,PX_s,R,cost,p_signal,q,
         t = n-1-t1
         probStart = 1/((n/p_signal)-t)
         transition_matrix = np.array([[1-probStart,probStart,0],[0,1-q,q],[0,0,1]])
-        
-        #current internal state = 0 
+        #current internal state = 0
+            
         for i in range(len(b)):#belief for state = 1
             j = 0
             iterj = 1;
             if etaH == 1:
                 value[i,int(1/db)-i,0,t] =1.0; policy[i,int(1/db)-i,0,t] =1 #use only when etaH=1
                 value[i,int(1/db)-i,1,t] =1.0; policy[i,int(1/db)-i,1,t] =1 #use only when etaH=1
-                value0[i,int(1/db)-i,0,t] = 1-c[0,0]; 
-                value1[i,int(1/db)-i,0,t] = 1.-c[0,1]; 
+                value0[i,int(1/db)-i,0,t] = 1-c[0,0]; value0[i,int(1/db)-i,1,t] = 1-c[1,0]; 
+                value1[i,int(1/db)-i,0,t] = 1.-c[0,1]; value1[i,int(1/db)-i,1,t] = 1.-c[1,1];
                 iterj = 1-db
     
             while round(b[i]+b[j], rounding)<=iterj:#belief for state = 2
@@ -164,8 +163,8 @@ def getPolicy(b,db,rounding,etaL,etaH,I,O,s,I_N,PX_s,R,cost,p_signal,q,
             if etaH == 1:
                 value[i,int(1/db)-i,0,t] =1.0; policy[i,int(1/db)-i,0,t] =1 #use only when etaH=1
                 value[i,int(1/db)-i,1,t] =1.0; policy[i,int(1/db)-i,1,t] =1 #use only when etaH=1
-                value0[i,int(1/db)-i,1,t] = 1-c[1,0]; 
-                value1[i,int(1/db)-i,1,t] = 1.-c[1,1];
+                value0[i,int(1/db)-i,0,t] = 1-c[0,0]; value0[i,int(1/db)-i,1,t] = 1-c[1,0]; 
+                value1[i,int(1/db)-i,0,t] = 1.-c[0,1]; value1[i,int(1/db)-i,1,t] = 1.-c[1,1];
                 iterj = 1-db
     
             while round(b[i]+b[j], rounding)<=iterj:#belief for state = 2
@@ -256,16 +255,14 @@ def getPolicy(b,db,rounding,etaL,etaH,I,O,s,I_N,PX_s,R,cost,p_signal,q,
                     elif r[0]<r[1]:policy[i,j,1,t]=1   
                 
                 j = j+1
-    
+                
     return value,value0,value1,policy
-
-           
 
 #%%
 #use the function, getPolicy
 db = 0.01
 b = np.arange(0.0,1.+2*db,db) #discrete belief space use for b0,b1 and b2
-rounding = 2;
+rounding = 3;
 b = np.round(b,rounding)
 
 etaL = 0.6; etaH = 0.9 #two levels of eta for the two internal states
@@ -280,39 +277,34 @@ R = np.array([[1,0],[0,1]])
 
 c00 = 0.00; c10 = 0.00; c01 = 0.02; c11 = 0.02
 #magnitude of costs on going from i to j internal states
+
 cost = np.array([[c00,c01],[c10,c11]])
 p_signal = 0.2; q = 0.3
 trial_length = 10 #trial length
 
 compare = 1; beta = 50; 
 
-
-start = time.perf_counter()
-
 value,value0,value1,policy = getPolicy(b,db,rounding,etaL,etaH,I,O,s,I_N,PX_s,R,cost,p_signal,q,
               trial_length,compare,beta)
-
-print(time.perf_counter()-start) 
-
+            
 #%%
 
 i = 9; j = 0
 plt.imshow(value[:,:,j,i], extent=[0,1,1,0]);
-
 plt.ylabel('belief for signal'); plt.xlabel('belief for postsignal')
 #plt.title('value, t=%d'%(i,)); plt.colorbar(); plt.figure()
 plt.title('value, t=%d,q=%1.1f,costi1=%1.2f,etaL=%1.1f,etaH=%1.1f'%(i,
             q,c11,etaL,etaH)); plt.colorbar(); plt.figure()
 
-plt.imshow(value0[:,:,j,i], extent=[0,1,1,0]);
+plt.imshow(value0[:,:,0,i], extent=[0,1,1,0]);
 plt.ylabel('belief for signal'); plt.xlabel('belief for postsignal')
 plt.title('Q0, t=%d,q=%1.1f,costi1=%1.2f,eta=%1.1f'%(i,q,c11,etaL)); plt.colorbar(); plt.figure()
 
-plt.imshow(value1[:,:,j,i], extent=[0,1,1,0]);
+plt.imshow(value1[:,:,0,i], extent=[0,1,1,0]);
 plt.ylabel('belief for signal'); plt.xlabel('belief for postsignal')
 plt.title('Q1, t=%d,q=%1.1f,costi1=%1.2f,eta=%1.1f'%(i,q,c11,etaH)); plt.colorbar(); plt.figure()
 
-plt.imshow(value0[:,:,j,i]-value1[:,:,j,i], extent=[0,1,1,0]);
+plt.imshow(value0[:,:,0,i]-value1[:,:,0,i], extent=[0,1,1,0]);
 plt.ylabel('belief for signal'); plt.xlabel('belief for postsignal')
 plt.title('Q0-Q1, t=%d,q=%1.1f,costi1=%1.2f,etaL=%1.1f,etaH=%1.1f'%(i,
                  q,c11,etaL,etaH)); plt.colorbar(); plt.figure()
@@ -326,7 +318,7 @@ plt.ylabel('belief for signal'); plt.xlabel('belief for postsignal')
 plt.title('policy, t=%d,q=%1.1f,costi1=%1.2fetaL=%1.1f,etaH=%1.1f'%(i,
                 q,c11,etaL,etaH)); 
 
-mat = plt.imshow(policy[:,:,j,i],cmap=cmap,vmin =-0.5,vmax = 2.5, extent=[0,1,1,0])
+mat = plt.imshow(policy[:,:,0,i],cmap=cmap,vmin =-0.5,vmax = 2.5, extent=[0,1,1,0])
 plt.colorbar(mat,ticks=np.linspace(0,2,3)); 
 
 
@@ -420,7 +412,7 @@ def inferenceDiscretePolicy(trial,trial_length,p_signal,etaL,etaH,
             
         Q = np.array([q0,q1])
         r = np.round(softmax(Q,beta),rounding)
-        if r[0]==r[1]:internalState[j+1]=1; action[j] = 1; etaArr[j] = eta[1]
+        if r[0]==r[1]:internalState[j+1]=1; action[j] = 2; etaArr[j] = eta[1]
         elif r[0]>r[1]:internalState[j+1]=0; action[j] = 0; etaArr[j] = eta[0]
         elif r[0]<r[1]:internalState[j+1]=1; action[j] = 1;  etaArr[j] = eta[1] 
 
@@ -466,10 +458,9 @@ def generate_responseDiscretePolicy(trial,posterior):
     
     return inferred_state,response, hit, miss, cr, fa  
 
-
 #%%
 
-trial_length = 100;
+trial_length = 10;
 p_signal = 0.5; q = 0.1
 etaL = 0.6; etaH = 0.9 #two levels of eta for the two internal states
 signal_length_type = 0; signal_length = 10
@@ -477,6 +468,8 @@ db = 0.01
 b = np.arange(0.0,1.+2*db,db) #discrete belief space use for b0,b1 and b2
 rounding = 3;
 b = np.round(b,rounding)
+cost = np.array([[0.0,0.0],[0.03,0.03]])
+
 
 c00 = 0.00; c10 = 0.00; c01 = 0.03; c11 = 0.02
 #magnitude of costs on going from i to j internal states
@@ -527,23 +520,33 @@ ax[1].plot(t[1:],action, label = 'action', linestyle ='dashed',
 ax[0].legend(bbox_to_anchor=(1.05, 1), loc='upper left');
 ax[1].legend(bbox_to_anchor=(1.05, 1), loc='upper left')
 
-ax[0].set_title('etaH=%1.2f, etaL=%1.2f, c01=%1.2f, c11=%1.2f, q=%1.2f'
-                              %(etaH,etaL,c01,c11,q)) 
 
 #%%
 
-nTrials = 3000
+trial_length = 10;
+p_signal = 0.5; q = 0.3
+etaL = 0.6; etaH = 0.9
+signal_length_type = 0; signal_length = 10
+db = 0.01
+b = np.arange(0.0,1.+2*db,db) #discrete belief space use for b0,b1 and b2
+rounding = 2;
+b = np.round(b,rounding)
+cost = np.array([[0.0,0.0],[0.02,0.02]])
+
+nTrials = 1000
 posteriorTrials = np.full((nTrials,trial_length+1,3),0.0)
 actionTrials = np.full((nTrials,trial_length,1),0.0)
 trialType = np.full((nTrials,1),0.0)
+signalTrial =  np.full((nTrials,trial_length,1),0.0) #underlying signal
 
 for nT in range(nTrials):
     trial, trial_signal = generate_trialPolicy(trial_length, p_signal, q,
                              signal_length_type,signal_length)
     observation, posterior, internalState, action = inferenceDiscretePolicy(trial,trial_length,p_signal,etaL,etaH,
-                            value0,value1,cost,b,db,beta,rounding)
+                                value0,value1,cost,b,db,beta,rounding)
     inferred_state,response,hit,miss,cr,fa = generate_responseDiscretePolicy(trial,posterior)
     posteriorTrials[nT,:,:] = posterior
+    signalTrial[nT,:,:] = trial[1:]
     trialType[nT] = trial_signal
     actionTrials[nT,:,:] = action
     
@@ -552,25 +555,28 @@ t = np.arange(0,trial_length+1,1)
 #for signal trials
 avgPosterior = np.average(posteriorTrials[np.where(trialType==1)[0],:,:],axis=0)
 avgAction = np.average(actionTrials[np.where(trialType==1)[0],:,:],axis=0)
+avgSignal = np.average(signalTrial[np.where(trialType==1)[0],:,:],axis=0)
 plt.plot(t,avgPosterior[:,1],label ='b(1)') 
 plt.plot(t,avgPosterior[:,2],label ='b(2)') 
+plt.plot(t[1:],avgSignal[:,0],label ='underlying signal') 
 plt.plot(t[1:],avgAction[:,0],label ='action',marker='o')
 plt.legend()
-plt.xlabel('time'); 
-plt.title('Avg runs--signal trials, etaH=%1.2f, etaL=%1.2f, c01=%1.2f, c11=%1.2f, q=%1.2f'
-                              %(etaH,etaL,c01,c11,q)) 
+plt.xlabel('time'); plt.title('Avg runs--signal trials, etaH=%1.2f, etaL=%1.2f, ci1=%1.2f,q=%1.1f'
+                              %(etaH,etaL,c11,q)) 
 
 plt.figure()
  
 #for signal trials
 avgPosterior = np.average(posteriorTrials[np.where(trialType==0)[0],:,:],axis=0)
 avgAction = np.average(actionTrials[np.where(trialType==0)[0],:,:],axis=0)
+avgSignal = np.average(signalTrial[np.where(trialType==0)[0],:,:],axis=0)
 plt.plot(t,avgPosterior[:,1],label ='b(1)') 
 plt.plot(t,avgPosterior[:,2],label ='b(2)') 
+plt.plot(t[1:],avgSignal[:,0],label ='underlying signal') 
 plt.plot(t[1:],avgAction[:,0],label ='action',marker='o')
 plt.legend()
-plt.xlabel('time'); plt.title('Avg runs--non-signal trials, etaH=%1.2f, etaL=%1.2f,c01=%1.2f, c11=%1.2f,,q=%1.1f'
-                              %(etaH,etaL,c01,c11,q))       
+plt.xlabel('time'); plt.title('Avg runs--non-signal trials, etaH=%1.2f, etaL=%1.2f, ci1=%1.2f,q=%1.1f'
+                              %(etaH,etaL,c11,q))       
 
 
 #%%
@@ -684,7 +690,7 @@ trial_type = np.full((nTrials,3),0)
 for k in range(nTrials):
     trial = func(trial_length, p_signal, q, signal_length_type, signal_length)
     observation, posterior, internalState, action = inferenceDiscretePolicy(trial,trial_length,p_signal,etaL,etaH,
-                            value0,value1,cost,b,db,beta,rounding)
+                                value0,value1,cost,b,db,beta,rounding)
     inferred_state,response,hit,miss,cr,fa = generate_responseDiscretePolicy(trial,posterior)
 
     trial_signal = 0
