@@ -338,7 +338,7 @@ def inferenceDiscretePolicy(trial,trial_length,p_signal,
         
         q = np.array([q0,q1])
         r = np.round(softmax(q,beta),rounding)
-        if r[0]== r[1]:internalState[j+1]=1; action[j] = 2; etaArr[j] = eta[1]
+        if r[0]== r[1]:internalState[j+1]=1; action[j] = 1; etaArr[j] = eta[1]
         elif r[0]>r[1]:internalState[j+1]=0; action[j] = 0; etaArr[j] = eta[0]
         elif r[0]<r[1]:internalState[j+1]=1; action[j] = 1;  etaArr[j] = eta[1] 
 
@@ -387,41 +387,34 @@ def generate_responseDiscretePolicy(trial,posterior):
 #simpler case: two states, single changepoint
 db = 0.001
 b = np.arange(0.0,1.0+(db),db) #discrete belief space to use for b0 and b1
-b = np.round(b,3)
-etaL = 0.6; etaH = 0.9 #two levels of eta for the two internal states
+b = np.round(b,3);rounding = 3
+etaL = 0.5; etaH = 1.0 #two levels of eta for the two internal states
 I = np.array([0,1]) #internal state space : choose low or high eta levels
 O = np.array([0,1]) #observation space: 0/1
 s = np.array([0,1]) #environmental state space
 I_N = np.array([0,1]) #states to choose at N (H0 or H1) 
 PX_s = np.array([[[etaL,1-etaL],[1-etaL,etaL]],[[etaH,1-etaH],[1-etaH,etaH]]])
 R = np.array([[1,0],[0,1]]) #R00,R01,R10,R11 (Rij = rewards on choosing Hi when Hj is true)
-c00 = 0.00; c10 = 0.00; c01 = 0.02; c11 = 0.02
+c00 = 0.00; c10 = 0.00; c01 = 0.00; c11 = 0.00
 #magnitude of costs on going from i to j internal states
 cost = np.array([[c00,c01],[c10,c11]])
 p_signal = 0.5; 
 
 compare = 1; beta = 100; 
 
-n = 10 #trial 
+trial_length = 10 #trial 
 
 value0,value1,value,policy=getOptimalPolicy(b,I,O,etaL,
-                        etaH,s,I_N,PX_s,R,cost,p_signal,n,db,
+                        etaH,s,I_N,PX_s,R,cost,p_signal,trial_length,db,
                         compare,beta)
 
 #%%
-trial_length=10; p_signal = 0.5; 
-signal_length_type = 0; signal_length=1
-etaL = 0.6; etaH = 0.9
-costs = np.array([[0.0,0.0],[0.02,0.02]])
-beta = 100 #softmax param
 
-db = 0.001
-b = np.arange(0.0,1.0+(db),db) #discrete belief space to use for b0 and b1
-b = np.round(b,3); rounding = 3
+signal_length_type = 0; signal_length=1
 
 trial,trial_signal = generate_trialPolicy(trial_length, p_signal, 0,1)
 observation,posterior, internalState, action = inferenceDiscretePolicy(
-    trial,trial_length,p_signal, etaL,etaH,value0, value1,costs,b,db, beta, rounding)
+    trial,trial_length,p_signal, etaL,etaH,value0, value1,cost,b,db, beta, rounding)
 inferred_state,response, hit, miss, cr, fa  = generate_responseDiscretePolicy(
     trial,posterior)
 
@@ -443,14 +436,6 @@ ax[1].legend(bbox_to_anchor=(1.05, 1), loc='upper left')
 
 #%%
 #average trajectories
-trial_length=10; p_signal = 0.5; 
-signal_length_type = 0; signal_length=1
-etaL = 0.6; etaH = 0.9
-costs = np.array([[0.0,0.0],[0.02,0.02]])
-beta = 100 #softmax param
-db = 0.001
-b = np.arange(0.0,1.0+(db),db) #discrete belief space to use for b0 and b1
-b = np.round(b,3); rounding = 3
 
 nTrials = 1000
 posteriorTrials = np.full((nTrials,trial_length+1,2),0.0)
@@ -460,7 +445,7 @@ trialType = np.full((nTrials,1),0.0)
 for nT in range(nTrials):
     trial,trial_signal = generate_trialPolicy(trial_length, p_signal, 0,1)
     observation,posterior, internalState, action = inferenceDiscretePolicy(
-    trial,trial_length,p_signal, etaL,etaH,value0, value1,costs,b,db, beta, rounding)
+    trial,trial_length,p_signal, etaL,etaH,value0, value1,cost,b,db, beta, rounding)
     inferred_state,response, hit, miss, cr, fa  = generate_responseDiscretePolicy(
     trial,posterior)
     posteriorTrials[nT,:,:] = posterior
