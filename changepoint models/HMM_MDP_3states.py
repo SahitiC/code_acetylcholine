@@ -469,7 +469,7 @@ def generate_responseDiscretePolicy(trial,posterior):
 
 #%%
 
-trial_length = 10;
+trial_length = 100;
 p_signal = 0.5; q = 0.1
 etaL = 0.6; etaH = 0.9 #two levels of eta for the two internal states
 signal_length_type = 0; signal_length = 10
@@ -478,6 +478,11 @@ b = np.arange(0.0,1.+2*db,db) #discrete belief space use for b0,b1 and b2
 rounding = 3;
 b = np.round(b,rounding)
 
+c00 = 0.00; c10 = 0.00; c01 = 0.03; c11 = 0.02
+#magnitude of costs on going from i to j internal states
+cost = np.array([[c00,c01],[c10,c11]])
+p_signal = 0.5; q = 0.05
+compare = 1; beta = 50; 
 
 I = np.array([0,1]) #internal state space : choose low or high eta levels
 O = np.array([0,1]) #observation space: 0/1
@@ -486,13 +491,6 @@ I_N = np.array([0,1]) #states to choose at N (H0 or H1)
 PX_s = np.array([[[etaL,1-etaL,etaL],[1-etaL,etaL,1-etaL]],[[etaH,1-etaH,etaH],[1-etaH,etaH,1-etaH]]])
 R = np.array([[1,0],[0,1]]) 
 #R00,R01,R10,R11 (Rij = rewards on choosing Hi when Hj is true)
-
-c00 = 0.00; c10 = 0.00; c01 = 0.04; c11 = 0.01
-#magnitude of costs on going from i to j internal states
-cost = np.array([[c00,c01],[c10,c11]])
-p_signal = 0.5; q = 0.05
-trial_length = 100 #trial length
-compare = 1; beta = 50; 
 
 
 start = time.perf_counter()
@@ -579,23 +577,23 @@ plt.xlabel('time'); plt.title('Avg runs--non-signal trials, etaH=%1.2f, etaL=%1.
 #looking at performance at different q and trial length
 
 #parameters:
-c00 = 0.00; c10 = 0.00; c01 = 0.05; c11 = 0.01
+c00 = 0.00; c10 = 0.00; c01 = 0.02; c11 = 0.02
 #magnitude of costs on going from i to j internal states
 cost = np.array([[c00,c01],[c10,c11]])
 etaL = 0.6; etaH = 0.9 #two levels of eta for the two internal states
 compare = 1; beta = 50;  #use softmax with beta
 trial_length = 10;
 p_signal = 0.5; q = 0.1
-etaL = 0.6; etaH = 0.9 #two levels of eta for the two internal states
 signal_length_type = 0; signal_length = 10
+
 db = 0.01
 b = np.arange(0.0,1.+2*db,db) #discrete belief space use for b0,b1 and b2
-rounding = 3;
+rounding = 2;
 b = np.round(b,rounding)
 
 nTrials = 100
 
-trial_lengthArr = [1,5,10,25,50,75,100,150]
+trial_lengthArr = [1,5,10,25,50] #75,100,125
 qArr = [0.01,0.2,0.5,0.7] #0.01,0.2,0.5,0.7
 trialTypeRates = np.full((len(qArr),len(trial_lengthArr),4),np.nan)
 
@@ -603,11 +601,12 @@ start = time.perf_counter()
 
 for t in range(len(trial_lengthArr)):
     trial_length= trial_lengthArr[t]
-    s=0
-    while qArr [s] <= trial_length:
-        q = qArr [s]
+    for s in range(len(qArr)) :
+        q = qArr[s]
         trial_type = np.full((nTrials,3),0) #signal trial or not, start point of signal, signal len
         hit = 0; miss = 0; cr = 0; fa = 0
+        value,value0,value1,policy = getPolicy(b,db,rounding,etaL,etaH,I,O,s,I_N,PX_s,R,cost,p_signal,q,
+              trial_length,compare,beta)
         #trials:
         for k in range(nTrials):        
 
