@@ -388,14 +388,14 @@ def generate_responseDiscretePolicy(trial,posterior):
 db = 0.001
 b = np.arange(0.0,1.0+(db),db) #discrete belief space to use for b0 and b1
 b = np.round(b,3);rounding = 3
-etaL = 0.5; etaH = 1.0 #two levels of eta for the two internal states
+etaL = 0.5; etaH = 0.9 #two levels of eta for the two internal states
 I = np.array([0,1]) #internal state space : choose low or high eta levels
 O = np.array([0,1]) #observation space: 0/1
 s = np.array([0,1]) #environmental state space
 I_N = np.array([0,1]) #states to choose at N (H0 or H1) 
 PX_s = np.array([[[etaL,1-etaL],[1-etaL,etaL]],[[etaH,1-etaH],[1-etaH,etaH]]])
 R = np.array([[1,0],[0,1]]) #R00,R01,R10,R11 (Rij = rewards on choosing Hi when Hj is true)
-c00 = 0.00; c10 = 0.00; c01 = 0.00; c11 = 0.00
+c00 = 0.00; c10 = 0.00; c01 = 0.02; c11 = 0.02
 #magnitude of costs on going from i to j internal states
 cost = np.array([[c00,c01],[c10,c11]])
 p_signal = 0.5; 

@@ -24,13 +24,249 @@ def softmax(x, beta):
     return np.exp(beta*x) / np.sum(np.exp(beta*x), axis=0)
 
 
+ #%%
+ 
+def getPolicy(b,db,rounding,etaL,etaH,I,O,s,I_N,PX_s,R,cost,p_signal,q,
+              trial_length,compare,beta):
+    c=cost
+    n=trial_length
+    value = np.full((len(b),len(b),len(I),n+1),np.nan) #value for each state for all n time steps
+    policy = np.full((len(b),len(b),len(I),n+1),np.nan) #corresponding policy
+    
+    value0 = np.full((len(b),len(b),len(I),n+1),np.nan) #value for each state for all n time steps
+    value1 = np.full((len(b),len(b),len(I),n+1),np.nan) #value for each state for all n time steps
+    
+    
+    #optimal policy for last time step where IS doesn't matter
+    for i in range(len(b)):#belief for state = 1
+        j = 0
+        while (b[i]+b[j])<=1:#belief for state = 2
+            #immediate reward,position 0 is for choosing H0 and 1 is for choosing H1
+            r = [(b[i]+b[j])*R[0,1]+(1-b[i]-b[j])*R[0,0], 
+                 (b[i]+b[j])*R[1,1]+(1-b[i]-b[j])*R[1,0]] 
+            value[i,j,0,n] = np.max(r) #maximum reward
+            policy[i,j,0,n] = np.where(r == value[i,j,0,n])[0][0] #position/choice which gives max reward
+            j=j+1
+    value[:,:,1,n] = value[:,:,0,n]
+    policy[:,:,1,n] = policy[:,:,0,n]    
+    
+    for t1 in range(n):
+        t = n-1-t1
+        probStart = 1/((n/p_signal)-t)
+        transition_matrix = np.array([[1-probStart,probStart,0],[0,1-q,q],[0,0,1]])
+        #current internal state = 0
+            
+        for i in range(len(b)):#belief for state = 1
+            j = 0
+            iterj = 1;
+            if etaH == 1:
+                value[i,int(1/db)-i,0,t] =1.0; policy[i,int(1/db)-i,0,t] =1 #use only when etaH=1
+                value[i,int(1/db)-i,1,t] =1.0; policy[i,int(1/db)-i,1,t] =1 #use only when etaH=1
+                value0[i,int(1/db)-i,0,t] = 1-c[0,0]; value0[i,int(1/db)-i,1,t] = 1-c[1,0]; 
+                value1[i,int(1/db)-i,0,t] = 1.-c[0,1]; value1[i,int(1/db)-i,1,t] = 1.-c[1,1];
+                iterj = 1-db
+    
+            while round(b[i]+b[j], rounding)<=iterj:#belief for state = 2
+    
+                bArr = [1-b[i]-b[j],b[i],b[j]]
+                arr = np.array([[np.matmul(bArr,transition_matrix)*PX_s[0,0,:],
+                                  np.matmul(bArr,transition_matrix)*PX_s[0,1,:]],
+                                [np.matmul(bArr,transition_matrix)*PX_s[1,0,:],
+                                 np.matmul(bArr,transition_matrix)*PX_s[1,1,:]]])
+    
+                b1Arr = np.array([[arr[0,0,:]/np.sum(arr[0,0,:]),
+                                  arr[0,1,:]/np.sum(arr[0,1,:])],
+                                [arr[1,0,:]/np.sum(arr[1,0,:]),
+                                 arr[1,1,:]/np.sum(arr[1,1,:])]])
+                closest_index = np.array(b1Arr/db, dtype=int)
+                
+                if (closest_index[:,:,1]+closest_index[:,:,2]>= len(b)-3).any():
+                    futurevx0_y0 = np.array([[value[closest_index[0,0,1],closest_index[0,0,2],0,t+1],
+                                    value[closest_index[0,1,1],closest_index[0,1,2],0,t+1]],
+                                    [value[closest_index[1,0,1],closest_index[1,0,2],1,t+1],
+                                    value[closest_index[1,1,1],closest_index[1,1,2],1,t+1]]])
+                    futurevx0_y1 = np.array([[value[closest_index[0,0,1],closest_index[0,0,2],0,t+1],
+                                    value[closest_index[0,1,1],closest_index[0,1,2],0,t+1]],
+                                    [value[closest_index[1,0,1],closest_index[1,0,2],1,t+1],
+                                    value[closest_index[1,1,1],closest_index[1,1,2],1,t+1]]])
+                    futurevx1_y0 = np.array([[value[closest_index[0,0,1],closest_index[0,0,2],0,t+1],
+                                    value[closest_index[0,1,1],closest_index[0,1,2],0,t+1]],
+                                    [value[closest_index[1,0,1],closest_index[1,0,2],1,t+1],
+                                    value[closest_index[1,1,1],closest_index[1,1,2],1,t+1]]])
+                    futurevx1_y1 = np.array([[value[closest_index[0,0,1],closest_index[0,0,2],0,t+1],
+                                    value[closest_index[0,1,1],closest_index[0,1,2],0,t+1]],
+                                    [value[closest_index[1,0,1],closest_index[1,0,2],1,t+1],
+                                    value[closest_index[1,1,1],closest_index[1,1,2],1,t+1]]])
+        
+        
+                    future_vb1Arr = futurevx0_y0
+                    
+                else: 
+                    futurevx0_y0 = np.array([[value[closest_index[0,0,1],closest_index[0,0,2],0,t+1],
+                                    value[closest_index[0,1,1],closest_index[0,1,2],0,t+1]],
+                                    [value[closest_index[1,0,1],closest_index[1,0,2],1,t+1],
+                                    value[closest_index[1,1,1],closest_index[1,1,2],1,t+1]]])
+                    futurevx0_y1 = np.array([[value[closest_index[0,0,1],closest_index[0,0,2]+1,0,t+1],
+                                    value[closest_index[0,1,1],closest_index[0,1,2]+1,0,t+1]],
+                                    [value[closest_index[1,0,1],closest_index[1,0,2]+1,1,t+1],
+                                    value[closest_index[1,1,1],closest_index[1,1,2]+1,1,t+1]]])
+                    futurevx1_y0 = np.array([[value[closest_index[0,0,1]+1,closest_index[0,0,2],0,t+1],
+                                    value[closest_index[0,1,1]+1,closest_index[0,1,2],0,t+1]],
+                                    [value[closest_index[1,0,1]+1,closest_index[1,0,2],1,t+1],
+                                    value[closest_index[1,1,1]+1,closest_index[1,1,2],1,t+1]]])
+                    futurevx1_y1 = np.array([[value[closest_index[0,0,1]+1,closest_index[0,0,2]+1,0,t+1],
+                                    value[closest_index[0,1,1]+1,closest_index[0,1,2]+1,0,t+1]],
+                                    [value[closest_index[1,0,1]+1,closest_index[1,0,2]+1,1,t+1],
+                                    value[closest_index[1,1,1]+1,closest_index[1,1,2]+1,1,t+1]]])
+        
+        
+                    future_vb1Arr = interpolate2d(b1Arr[:,:,1], b[closest_index[:,:,1]],
+                                    b[closest_index[:,:,1]+1], db, b1Arr[:,:,2], 
+                                    b[closest_index[:,:,2]], b[closest_index[:,:,2]+1],
+                                    db,futurevx0_y0,futurevx0_y1,futurevx1_y0,futurevx1_y1)
+                
+                v0 = np.sum(arr[0,0,:])*future_vb1Arr[0,0]+np.sum(
+                    arr[0,1,:])*future_vb1Arr[0,1]
+                v1 = np.sum(arr[1,0,:])*future_vb1Arr[1,0]+np.sum(
+                    arr[1,1,:])*future_vb1Arr[1,1]
+                v = np.array([-c[0,0]+v0,-c[0,1]+v1])
+                value0[i,j,0,t] = v[0]; 
+                value1[i,j,0,t] = v[1]
+              
+                
+                #choose optimal action
+                if compare == 0: #max
+                
+                    value[i,j,0,t] = np.max([round(v[0],rounding), round(v[1],rounding)])
+                    
+                    if round(v[0],rounding)==round(v[1],rounding):policy[i,j,0,t]=2
+                    elif round(v[0],rounding)>round(v[1],rounding):policy[i,j,0,t]=0
+                    elif round(v[0],rounding)<round(v[1],rounding):policy[i,j,0,t]=1   
+                           
+                elif compare == 1:#soft max
+                    
+                    r = np.round(softmax(v,beta),rounding)
+                     
+                    value[i,j,0,t] = np.round(v[np.where(r == np.max(
+                        r))[0][0]],rounding)   
+                    
+                    if r[0]== r[1]:policy[i,j,0,t]=2
+                    elif r[0]>r[1]:policy[i,j,0,t]=0
+                    elif r[0]<r[1]:policy[i,j,0,t]=1   
+                
+                j = j+1
+                
+        #current internal state = 1
+        for i in range(len(b)):#belief for state = 1
+            j = 0
+            iterj = 1;
+            if etaH == 1:
+                value[i,int(1/db)-i,0,t] =1.0; policy[i,int(1/db)-i,0,t] =1 #use only when etaH=1
+                value[i,int(1/db)-i,1,t] =1.0; policy[i,int(1/db)-i,1,t] =1 #use only when etaH=1
+                value0[i,int(1/db)-i,0,t] = 1-c[0,0]; value0[i,int(1/db)-i,1,t] = 1-c[1,0]; 
+                value1[i,int(1/db)-i,0,t] = 1.-c[0,1]; value1[i,int(1/db)-i,1,t] = 1.-c[1,1];
+                iterj = 1-db
+    
+            while round(b[i]+b[j], rounding)<=iterj:#belief for state = 2
+    
+                bArr = [1-b[i]-b[j],b[i],b[j]]
+                arr = np.array([[np.matmul(bArr,transition_matrix)*PX_s[0,0,:],
+                                  np.matmul(bArr,transition_matrix)*PX_s[0,1,:]],
+                                [np.matmul(bArr,transition_matrix)*PX_s[1,0,:],
+                                 np.matmul(bArr,transition_matrix)*PX_s[1,1,:]]])
+    
+                b1Arr = np.array([[arr[0,0,:]/np.sum(arr[0,0,:]),
+                                  arr[0,1,:]/np.sum(arr[0,1,:])],
+                                [arr[1,0,:]/np.sum(arr[1,0,:]),
+                                 arr[1,1,:]/np.sum(arr[1,1,:])]])
+                closest_index = np.array(b1Arr/db, dtype=int)
+                
+                if (closest_index[:,:,1]+closest_index[:,:,2]>= len(b)-3).any():
+                    futurevx0_y0 = np.array([[value[closest_index[0,0,1],closest_index[0,0,2],0,t+1],
+                                    value[closest_index[0,1,1],closest_index[0,1,2],0,t+1]],
+                                    [value[closest_index[1,0,1],closest_index[1,0,2],1,t+1],
+                                    value[closest_index[1,1,1],closest_index[1,1,2],1,t+1]]])
+                    futurevx0_y1 = np.array([[value[closest_index[0,0,1],closest_index[0,0,2],0,t+1],
+                                    value[closest_index[0,1,1],closest_index[0,1,2],0,t+1]],
+                                    [value[closest_index[1,0,1],closest_index[1,0,2],1,t+1],
+                                    value[closest_index[1,1,1],closest_index[1,1,2],1,t+1]]])
+                    futurevx1_y0 = np.array([[value[closest_index[0,0,1],closest_index[0,0,2],0,t+1],
+                                    value[closest_index[0,1,1],closest_index[0,1,2],0,t+1]],
+                                    [value[closest_index[1,0,1],closest_index[1,0,2],1,t+1],
+                                    value[closest_index[1,1,1],closest_index[1,1,2],1,t+1]]])
+                    futurevx1_y1 = np.array([[value[closest_index[0,0,1],closest_index[0,0,2],0,t+1],
+                                    value[closest_index[0,1,1],closest_index[0,1,2],0,t+1]],
+                                    [value[closest_index[1,0,1],closest_index[1,0,2],1,t+1],
+                                    value[closest_index[1,1,1],closest_index[1,1,2],1,t+1]]])
+        
+        
+                    future_vb1Arr = futurevx0_y0 
+                    
+                else: 
+                    futurevx0_y0 = np.array([[value[closest_index[0,0,1],closest_index[0,0,2],0,t+1],
+                                    value[closest_index[0,1,1],closest_index[0,1,2],0,t+1]],
+                                    [value[closest_index[1,0,1],closest_index[1,0,2],1,t+1],
+                                    value[closest_index[1,1,1],closest_index[1,1,2],1,t+1]]])
+                    futurevx0_y1 = np.array([[value[closest_index[0,0,1],closest_index[0,0,2]+1,0,t+1],
+                                    value[closest_index[0,1,1],closest_index[0,1,2]+1,0,t+1]],
+                                    [value[closest_index[1,0,1],closest_index[1,0,2]+1,1,t+1],
+                                    value[closest_index[1,1,1],closest_index[1,1,2]+1,1,t+1]]])
+                    futurevx1_y0 = np.array([[value[closest_index[0,0,1]+1,closest_index[0,0,2],0,t+1],
+                                    value[closest_index[0,1,1]+1,closest_index[0,1,2],0,t+1]],
+                                    [value[closest_index[1,0,1]+1,closest_index[1,0,2],1,t+1],
+                                    value[closest_index[1,1,1]+1,closest_index[1,1,2],1,t+1]]])
+                    futurevx1_y1 = np.array([[value[closest_index[0,0,1]+1,closest_index[0,0,2]+1,0,t+1],
+                                    value[closest_index[0,1,1]+1,closest_index[0,1,2]+1,0,t+1]],
+                                    [value[closest_index[1,0,1]+1,closest_index[1,0,2]+1,1,t+1],
+                                    value[closest_index[1,1,1]+1,closest_index[1,1,2]+1,1,t+1]]])
+        
+        
+                    future_vb1Arr = interpolate2d(b1Arr[:,:,1], b[closest_index[:,:,1]],
+                                    b[closest_index[:,:,1]+1], db, b1Arr[:,:,2], 
+                                    b[closest_index[:,:,2]], b[closest_index[:,:,2]+1],
+                                    db,futurevx0_y0,futurevx0_y1,futurevx1_y0,futurevx1_y1)
+    
+                v0 = np.sum(arr[0,0,:])*future_vb1Arr[0,0]+np.sum(
+                    arr[0,1,:])*future_vb1Arr[0,1]
+                v1 = np.sum(arr[1,0,:])*future_vb1Arr[1,0]+np.sum(
+                    arr[1,1,:])*future_vb1Arr[1,1]
+                v = np.array([-c[1,0]+v0,-c[1,1]+v1])
+                value0[i,j,1,t] = v[0]; 
+                value1[i,j,1,t] = v[1]
+                
+                #choose optimal action
+                if compare == 0: #max
+                
+                    value[i,j,1,t] = np.max([round(v[0],rounding), round(v[1],rounding)])
+                    
+                    if round(v[0],rounding)==round(v[1],rounding):policy[i,j,1,t]=2
+                    elif round(v[0],rounding)>round(v[1],rounding):policy[i,j,1,t]=0
+                    elif round(v[0],rounding)<round(v[1],rounding):policy[i,j,1,t]=1   
+                           
+                elif compare == 1:#soft max
+                    
+                    r = np.round(softmax(v,beta),rounding)
+                     
+                    value[i,j,1,t] = np.round(v[np.where(r == np.max(
+                        r))[0][0]],rounding)   
+                    
+                    if r[0]== r[1]:policy[i,j,1,t]=2
+                    elif r[0]>r[1]:policy[i,j,1,t]=0
+                    elif r[0]<r[1]:policy[i,j,1,t]=1   
+                
+                j = j+1
+                
+    return value,value0,value1,policy
+
 #%%
-db = 0.001
+#use the function, getPolicy
+db = 0.01
 b = np.arange(0.0,1.+2*db,db) #discrete belief space use for b0,b1 and b2
 rounding = 3;
 b = np.round(b,rounding)
 
 etaL = 0.6; etaH = 0.9 #two levels of eta for the two internal states
+
 I = np.array([0,1]) #internal state space : choose low or high eta levels
 O = np.array([0,1]) #observation space: 0/1
 s = np.array([0,1,2]) #environmental state space
@@ -41,252 +277,20 @@ R = np.array([[1,0],[0,1]])
 
 c00 = 0.00; c10 = 0.00; c01 = 0.02; c11 = 0.02
 #magnitude of costs on going from i to j internal states
-c = np.array([[c00,c01],[c10,c11]])
 
-p_signal = 0.5; q = 0.3
-
-n = 10 #trial length
+cost = np.array([[c00,c01],[c10,c11]])
+p_signal = 0.2; q = 0.3
+trial_length = 10 #trial length
 
 compare = 1; beta = 50; 
 
-
- #%%
-
-value = np.full((len(b),len(b),len(I),n+1),np.nan) #value for each state for all n time steps
-policy = np.full((len(b),len(b),len(I),n+1),np.nan) #corresponding policy
-
-value0 = np.full((len(b),len(b),len(I),n+1),np.nan) #value for each state for all n time steps
-value1 = np.full((len(b),len(b),len(I),n+1),np.nan) #value for each state for all n time steps
-
-
-start = time.perf_counter()
-#optimal policy for last time step where IS doesn't matter
-for i in range(len(b)):#belief for state = 1
-    j = 0
-    while (b[i]+b[j])<=1:#belief for state = 2
-        #immediate reward,position 0 is for choosing H0 and 1 is for choosing H1
-        r = [(b[i]+b[j])*R[0,1]+(1-b[i]-b[j])*R[0,0], 
-             (b[i]+b[j])*R[1,1]+(1-b[i]-b[j])*R[1,0]] 
-        value[i,j,0,n] = np.max(r) #maximum reward
-        policy[i,j,0,n] = np.where(r == value[i,j,0,n])[0][0] #position/choice which gives max reward
-        j=j+1
-value[:,:,1,n] = value[:,:,0,n]
-policy[:,:,1,n] = policy[:,:,0,n]    
-
-for t1 in range(n):
-    t = n-1-t1
-    probStart = 1/((n/p_signal)-t)
-    transition_matrix = np.array([[1-probStart,probStart,0],[0,1-q,q],[0,0,1]])
-    #current internal state = 0
-        
-    for i in range(len(b)):#belief for state = 1
-        j = 0
-        iterj = 1;
-        if etaH == 1:
-            value[i,int(1/db)-i,0,t] =1.0; policy[i,int(1/db)-i,0,t] =1 #use only when etaH=1
-            value[i,int(1/db)-i,1,t] =1.0; policy[i,int(1/db)-i,1,t] =1 #use only when etaH=1
-            value0[i,int(1/db)-i,0,t] = 1-c[0,0]; value0[i,int(1/db)-i,1,t] = 1-c[1,0]; 
-            value1[i,int(1/db)-i,0,t] = 1.-c[0,1]; value1[i,int(1/db)-i,1,t] = 1.-c[1,1];
-            iterj = 1-db
-
-        while round(b[i]+b[j], rounding)<=iterj:#belief for state = 2
-
-            bArr = [1-b[i]-b[j],b[i],b[j]]
-            arr = np.array([[np.matmul(bArr,transition_matrix)*PX_s[0,0,:],
-                              np.matmul(bArr,transition_matrix)*PX_s[0,1,:]],
-                            [np.matmul(bArr,transition_matrix)*PX_s[1,0,:],
-                             np.matmul(bArr,transition_matrix)*PX_s[1,1,:]]])
-
-            b1Arr = np.array([[arr[0,0,:]/np.sum(arr[0,0,:]),
-                              arr[0,1,:]/np.sum(arr[0,1,:])],
-                            [arr[1,0,:]/np.sum(arr[1,0,:]),
-                             arr[1,1,:]/np.sum(arr[1,1,:])]])
-            closest_index = np.array(b1Arr/db, dtype=int)
+value,value0,value1,policy = getPolicy(b,db,rounding,etaL,etaH,I,O,s,I_N,PX_s,R,cost,p_signal,q,
+              trial_length,compare,beta)
             
-            if (closest_index[:,:,1]+closest_index[:,:,2]>= len(b)-3).any():
-                futurevx0_y0 = np.array([[value[closest_index[0,0,1],closest_index[0,0,2],0,t+1],
-                                value[closest_index[0,1,1],closest_index[0,1,2],0,t+1]],
-                                [value[closest_index[1,0,1],closest_index[1,0,2],1,t+1],
-                                value[closest_index[1,1,1],closest_index[1,1,2],1,t+1]]])
-                futurevx0_y1 = np.array([[value[closest_index[0,0,1],closest_index[0,0,2],0,t+1],
-                                value[closest_index[0,1,1],closest_index[0,1,2],0,t+1]],
-                                [value[closest_index[1,0,1],closest_index[1,0,2],1,t+1],
-                                value[closest_index[1,1,1],closest_index[1,1,2],1,t+1]]])
-                futurevx1_y0 = np.array([[value[closest_index[0,0,1],closest_index[0,0,2],0,t+1],
-                                value[closest_index[0,1,1],closest_index[0,1,2],0,t+1]],
-                                [value[closest_index[1,0,1],closest_index[1,0,2],1,t+1],
-                                value[closest_index[1,1,1],closest_index[1,1,2],1,t+1]]])
-                futurevx1_y1 = np.array([[value[closest_index[0,0,1],closest_index[0,0,2],0,t+1],
-                                value[closest_index[0,1,1],closest_index[0,1,2],0,t+1]],
-                                [value[closest_index[1,0,1],closest_index[1,0,2],1,t+1],
-                                value[closest_index[1,1,1],closest_index[1,1,2],1,t+1]]])
-    
-    
-                future_vb1Arr = futurevx0_y0
-                
-            else: 
-                futurevx0_y0 = np.array([[value[closest_index[0,0,1],closest_index[0,0,2],0,t+1],
-                                value[closest_index[0,1,1],closest_index[0,1,2],0,t+1]],
-                                [value[closest_index[1,0,1],closest_index[1,0,2],1,t+1],
-                                value[closest_index[1,1,1],closest_index[1,1,2],1,t+1]]])
-                futurevx0_y1 = np.array([[value[closest_index[0,0,1],closest_index[0,0,2]+1,0,t+1],
-                                value[closest_index[0,1,1],closest_index[0,1,2]+1,0,t+1]],
-                                [value[closest_index[1,0,1],closest_index[1,0,2]+1,1,t+1],
-                                value[closest_index[1,1,1],closest_index[1,1,2]+1,1,t+1]]])
-                futurevx1_y0 = np.array([[value[closest_index[0,0,1]+1,closest_index[0,0,2],0,t+1],
-                                value[closest_index[0,1,1]+1,closest_index[0,1,2],0,t+1]],
-                                [value[closest_index[1,0,1]+1,closest_index[1,0,2],1,t+1],
-                                value[closest_index[1,1,1]+1,closest_index[1,1,2],1,t+1]]])
-                futurevx1_y1 = np.array([[value[closest_index[0,0,1]+1,closest_index[0,0,2]+1,0,t+1],
-                                value[closest_index[0,1,1]+1,closest_index[0,1,2]+1,0,t+1]],
-                                [value[closest_index[1,0,1]+1,closest_index[1,0,2]+1,1,t+1],
-                                value[closest_index[1,1,1]+1,closest_index[1,1,2]+1,1,t+1]]])
-    
-    
-                future_vb1Arr = interpolate2d(b1Arr[:,:,1], b[closest_index[:,:,1]],
-                                b[closest_index[:,:,1]+1], db, b1Arr[:,:,2], 
-                                b[closest_index[:,:,2]], b[closest_index[:,:,2]+1],
-                                db,futurevx0_y0,futurevx0_y1,futurevx1_y0,futurevx1_y1)
-            
-            v0 = np.sum(arr[0,0,:])*future_vb1Arr[0,0]+np.sum(
-                arr[0,1,:])*future_vb1Arr[0,1]
-            v1 = np.sum(arr[1,0,:])*future_vb1Arr[1,0]+np.sum(
-                arr[1,1,:])*future_vb1Arr[1,1]
-            v = np.array([-c[0,0]+v0,-c[0,1]+v1])
-            value0[i,j,0,t] = v[0]; 
-            value1[i,j,0,t] = v[1]
-          
-            
-            #choose optimal action
-            if compare == 0: #max
-            
-                value[i,j,0,t] = np.max([round(v[0],rounding), round(v[1],rounding)])
-                
-                if round(v[0],rounding)==round(v[1],rounding):policy[i,j,0,t]=2
-                elif round(v[0],rounding)>round(v[1],rounding):policy[i,j,0,t]=0
-                elif round(v[0],rounding)<round(v[1],rounding):policy[i,j,0,t]=1   
-                       
-            elif compare == 1:#soft max
-                
-                r = np.round(softmax(v,beta),rounding)
-                 
-                value[i,j,0,t] = np.round(v[np.where(r == np.max(
-                    r))[0][0]],rounding)   
-                
-                if r[0]== r[1]:policy[i,j,0,t]=2
-                elif r[0]>r[1]:policy[i,j,0,t]=0
-                elif r[0]<r[1]:policy[i,j,0,t]=1   
-            
-            j = j+1
-            
-    #current internal state = 1
-    for i in range(len(b)):#belief for state = 1
-        j = 0
-        iterj = 1;
-        if etaH == 1:
-            value[i,int(1/db)-i,0,t] =1.0; policy[i,int(1/db)-i,0,t] =1 #use only when etaH=1
-            value[i,int(1/db)-i,1,t] =1.0; policy[i,int(1/db)-i,1,t] =1 #use only when etaH=1
-            value0[i,int(1/db)-i,0,t] = 1-c[0,0]; value0[i,int(1/db)-i,1,t] = 1-c[1,0]; 
-            value1[i,int(1/db)-i,0,t] = 1.-c[0,1]; value1[i,int(1/db)-i,1,t] = 1.-c[1,1];
-            iterj = 1-db
-
-        while round(b[i]+b[j], rounding)<=iterj:#belief for state = 2
-
-            bArr = [1-b[i]-b[j],b[i],b[j]]
-            arr = np.array([[np.matmul(bArr,transition_matrix)*PX_s[0,0,:],
-                              np.matmul(bArr,transition_matrix)*PX_s[0,1,:]],
-                            [np.matmul(bArr,transition_matrix)*PX_s[1,0,:],
-                             np.matmul(bArr,transition_matrix)*PX_s[1,1,:]]])
-
-            b1Arr = np.array([[arr[0,0,:]/np.sum(arr[0,0,:]),
-                              arr[0,1,:]/np.sum(arr[0,1,:])],
-                            [arr[1,0,:]/np.sum(arr[1,0,:]),
-                             arr[1,1,:]/np.sum(arr[1,1,:])]])
-            closest_index = np.array(b1Arr/db, dtype=int)
-            
-            if (closest_index[:,:,1]+closest_index[:,:,2]>= len(b)-3).any():
-                futurevx0_y0 = np.array([[value[closest_index[0,0,1],closest_index[0,0,2],0,t+1],
-                                value[closest_index[0,1,1],closest_index[0,1,2],0,t+1]],
-                                [value[closest_index[1,0,1],closest_index[1,0,2],1,t+1],
-                                value[closest_index[1,1,1],closest_index[1,1,2],1,t+1]]])
-                futurevx0_y1 = np.array([[value[closest_index[0,0,1],closest_index[0,0,2],0,t+1],
-                                value[closest_index[0,1,1],closest_index[0,1,2],0,t+1]],
-                                [value[closest_index[1,0,1],closest_index[1,0,2],1,t+1],
-                                value[closest_index[1,1,1],closest_index[1,1,2],1,t+1]]])
-                futurevx1_y0 = np.array([[value[closest_index[0,0,1],closest_index[0,0,2],0,t+1],
-                                value[closest_index[0,1,1],closest_index[0,1,2],0,t+1]],
-                                [value[closest_index[1,0,1],closest_index[1,0,2],1,t+1],
-                                value[closest_index[1,1,1],closest_index[1,1,2],1,t+1]]])
-                futurevx1_y1 = np.array([[value[closest_index[0,0,1],closest_index[0,0,2],0,t+1],
-                                value[closest_index[0,1,1],closest_index[0,1,2],0,t+1]],
-                                [value[closest_index[1,0,1],closest_index[1,0,2],1,t+1],
-                                value[closest_index[1,1,1],closest_index[1,1,2],1,t+1]]])
-    
-    
-                future_vb1Arr = futurevx0_y0 
-                
-            else: 
-                futurevx0_y0 = np.array([[value[closest_index[0,0,1],closest_index[0,0,2],0,t+1],
-                                value[closest_index[0,1,1],closest_index[0,1,2],0,t+1]],
-                                [value[closest_index[1,0,1],closest_index[1,0,2],1,t+1],
-                                value[closest_index[1,1,1],closest_index[1,1,2],1,t+1]]])
-                futurevx0_y1 = np.array([[value[closest_index[0,0,1],closest_index[0,0,2]+1,0,t+1],
-                                value[closest_index[0,1,1],closest_index[0,1,2]+1,0,t+1]],
-                                [value[closest_index[1,0,1],closest_index[1,0,2]+1,1,t+1],
-                                value[closest_index[1,1,1],closest_index[1,1,2]+1,1,t+1]]])
-                futurevx1_y0 = np.array([[value[closest_index[0,0,1]+1,closest_index[0,0,2],0,t+1],
-                                value[closest_index[0,1,1]+1,closest_index[0,1,2],0,t+1]],
-                                [value[closest_index[1,0,1]+1,closest_index[1,0,2],1,t+1],
-                                value[closest_index[1,1,1]+1,closest_index[1,1,2],1,t+1]]])
-                futurevx1_y1 = np.array([[value[closest_index[0,0,1]+1,closest_index[0,0,2]+1,0,t+1],
-                                value[closest_index[0,1,1]+1,closest_index[0,1,2]+1,0,t+1]],
-                                [value[closest_index[1,0,1]+1,closest_index[1,0,2]+1,1,t+1],
-                                value[closest_index[1,1,1]+1,closest_index[1,1,2]+1,1,t+1]]])
-    
-    
-                future_vb1Arr = interpolate2d(b1Arr[:,:,1], b[closest_index[:,:,1]],
-                                b[closest_index[:,:,1]+1], db, b1Arr[:,:,2], 
-                                b[closest_index[:,:,2]], b[closest_index[:,:,2]+1],
-                                db,futurevx0_y0,futurevx0_y1,futurevx1_y0,futurevx1_y1)
-
-            v0 = np.sum(arr[0,0,:])*future_vb1Arr[0,0]+np.sum(
-                arr[0,1,:])*future_vb1Arr[0,1]
-            v1 = np.sum(arr[1,0,:])*future_vb1Arr[1,0]+np.sum(
-                arr[1,1,:])*future_vb1Arr[1,1]
-            v = np.array([-c[1,0]+v0,-c[1,1]+v1])
-            value0[i,j,1,t] = v[0]; 
-            value1[i,j,1,t] = v[1]
-            
-            #choose optimal action
-            if compare == 0: #max
-            
-                value[i,j,1,t] = np.max([round(v[0],rounding), round(v[1],rounding)])
-                
-                if round(v[0],rounding)==round(v[1],rounding):policy[i,j,1,t]=2
-                elif round(v[0],rounding)>round(v[1],rounding):policy[i,j,1,t]=0
-                elif round(v[0],rounding)<round(v[1],rounding):policy[i,j,1,t]=1   
-                       
-            elif compare == 1:#soft max
-                
-                r = np.round(softmax(v,beta),rounding)
-                 
-                value[i,j,1,t] = np.round(v[np.where(r == np.max(
-                    r))[0][0]],rounding)   
-                
-                if r[0]== r[1]:policy[i,j,1,t]=2
-                elif r[0]>r[1]:policy[i,j,1,t]=0
-                elif r[0]<r[1]:policy[i,j,1,t]=1   
-            
-            j = j+1
-
-            
-print(time.perf_counter()-start) 
-
-
 #%%
 
-i = 3
-plt.imshow(value[:,:,0,i], extent=[0,1,1,0]);
+i = 9; j = 0
+plt.imshow(value[:,:,j,i], extent=[0,1,1,0]);
 plt.ylabel('belief for signal'); plt.xlabel('belief for postsignal')
 #plt.title('value, t=%d'%(i,)); plt.colorbar(); plt.figure()
 plt.title('value, t=%d,q=%1.1f,costi1=%1.2f,etaL=%1.1f,etaH=%1.1f'%(i,
@@ -457,13 +461,42 @@ def generate_responseDiscretePolicy(trial,posterior):
 #%%
 trial_length = 10;
 p_signal = 0.5; q = 0.1
-etaL = 0.5; etaH = 0.9
+etaL = 0.6; etaH = 0.9 #two levels of eta for the two internal states
 signal_length_type = 0; signal_length = 10
-db = 0.001
+db = 0.01
 b = np.arange(0.0,1.+2*db,db) #discrete belief space use for b0,b1 and b2
 rounding = 3;
 b = np.round(b,rounding)
 cost = np.array([[0.0,0.0],[0.03,0.03]])
+
+
+
+I = np.array([0,1]) #internal state space : choose low or high eta levels
+O = np.array([0,1]) #observation space: 0/1
+s = np.array([0,1,2]) #environmental state space
+I_N = np.array([0,1]) #states to choose at N (H0 or H1) 
+PX_s = np.array([[[etaL,1-etaL,etaL],[1-etaL,etaL,1-etaL]],[[etaH,1-etaH,etaH],[1-etaH,etaH,1-etaH]]])
+R = np.array([[1,0],[0,1]]) 
+#R00,R01,R10,R11 (Rij = rewards on choosing Hi when Hj is true)
+
+c00 = 0.00; c10 = 0.00; c01 = 0.04; c11 = 0.01
+#magnitude of costs on going from i to j internal states
+cost = np.array([[c00,c01],[c10,c11]])
+p_signal = 0.5; q = 0.05
+trial_length = 100 #trial length
+compare = 1; beta = 50; 
+
+
+start = time.perf_counter()
+
+value,value0,value1,policy = getPolicy(b,db,rounding,etaL,etaH,I,O,s,I_N,PX_s,R,cost,p_signal,q,
+              trial_length,compare,beta)
+
+print(time.perf_counter()-start) 
+
+#%%
+signal_length_type = 0; signal_length = 1
+
 
 trial, trial_signal = generate_trialPolicy(trial_length, p_signal, q,
                          signal_length_type,signal_length)
@@ -545,6 +578,103 @@ plt.plot(t[1:],avgAction[:,0],label ='action',marker='o')
 plt.legend()
 plt.xlabel('time'); plt.title('Avg runs--non-signal trials, etaH=%1.2f, etaL=%1.2f, ci1=%1.2f,q=%1.1f'
                               %(etaH,etaL,c11,q))       
+
+
+#%%
+#looking at performance at different q and trial length
+
+#parameters:
+c00 = 0.00; c10 = 0.00; c01 = 0.05; c11 = 0.01
+#magnitude of costs on going from i to j internal states
+cost = np.array([[c00,c01],[c10,c11]])
+etaL = 0.6; etaH = 0.9 #two levels of eta for the two internal states
+compare = 1; beta = 50;  #use softmax with beta
+trial_length = 10;
+p_signal = 0.5; q = 0.1
+etaL = 0.6; etaH = 0.9 #two levels of eta for the two internal states
+signal_length_type = 0; signal_length = 10
+db = 0.01
+b = np.arange(0.0,1.+2*db,db) #discrete belief space use for b0,b1 and b2
+rounding = 3;
+b = np.round(b,rounding)
+
+nTrials = 100
+
+trial_lengthArr = [1,5,10,25,50,75,100,150]
+qArr = [0.01,0.2,0.5,0.7] #0.01,0.2,0.5,0.7
+trialTypeRates = np.full((len(qArr),len(trial_lengthArr),4),np.nan)
+
+start = time.perf_counter()
+
+for t in range(len(trial_lengthArr)):
+    trial_length= trial_lengthArr[t]
+    s=0
+    while qArr [s] <= trial_length:
+        q = qArr [s]
+        trial_type = np.full((nTrials,3),0) #signal trial or not, start point of signal, signal len
+        hit = 0; miss = 0; cr = 0; fa = 0
+        #trials:
+        for k in range(nTrials):        
+
+            trial, trial_signal = generate_trialPolicy(trial_length, p_signal, q,
+                                     signal_length_type,signal_length)
+            observation, posterior, internalState, action = inferenceDiscretePolicy(trial,trial_length,p_signal,etaL,etaH,
+                                    value0,value1,cost,b,db,beta,rounding)
+            inferred_state,response,hit0,miss0,cr0,fa0 = generate_responseDiscretePolicy(trial,posterior)
+            
+            hit = hit+hit0; miss = miss+miss0; cr = cr+cr0; fa = fa+fa0
+            
+        trialTypeRates[s,t,0] = hit; trialTypeRates[s,t,1] = miss;
+        trialTypeRates[s,t,2] = cr; trialTypeRates[s,t,3] = fa;
+        s = s+1
+
+print(time.perf_counter()-start) 
+
+#%%
+#plot performance rates
+for l in range(len(qArr)):
+
+    a = trialTypeRates[l,:,0]/(trialTypeRates[l,:,0]+trialTypeRates[l,:,1])
+    plt.plot(trial_lengthArr,a, marker = 'o', label = 'q=%1.3f'%qArr[l])
+
+plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left'); plt.xlabel('trial length')
+plt.ylabel('hit rates'); 
+plt.title('etaH=%1.2f, etaL=%1.2f,c01=%1.2f, c11=%1.2f,,q=%1.1f'
+                              %(etaH,etaL,c01,c11,q)) 
+plt.figure()
+
+for l in range(len(qArr)):
+
+    a = trialTypeRates[l,:,3]/(trialTypeRates[l,:,2]+trialTypeRates[l,:,3])
+    plt.plot(trial_lengthArr,a, marker = 'o', label = 'q=%1.3f'%qArr[l])
+
+plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left'); plt.xlabel('trial length')
+plt.ylabel('fa rates'); 
+plt.title('etaH=%1.2f, etaL=%1.2f,c01=%1.2f, c11=%1.2f,,q=%1.1f'
+                              %(etaH,etaL,c01,c11,q)) 
+plt.figure()
+
+for l in range(len(trial_lengthArr)):
+
+    a = trialTypeRates[:,l,0]/(trialTypeRates[:,l,0]+trialTypeRates[:,l,1])
+    plt.plot(qArr,a, marker = 'o', label = 'trial_length=%d'%trial_lengthArr[l])
+
+plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left'); plt.xlabel('signal length')
+plt.ylabel('hit rates');
+plt.title('etaH=%1.2f, etaL=%1.2f,c01=%1.2f, c11=%1.2f,,q=%1.1f'
+                              %(etaH,etaL,c01,c11,q)) 
+plt.figure()
+
+for l in range(len(trial_lengthArr)):
+
+    a = trialTypeRates[:,l,3]/(trialTypeRates[:,l,2]+trialTypeRates[:,l,3])
+    plt.plot(qArr,a, marker = 'o', label = 'trial_length=%d'%trial_lengthArr[l])
+
+plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left'); plt.xlabel('signal length')
+plt.ylabel('fa rates'); 
+plt.title('etaH=%1.2f, etaL=%1.2f,c01=%1.2f, c11=%1.2f,,q=%1.1f'
+                              %(etaH,etaL,c01,c11,q)) 
+plt.figure()
 
 #%%
 #obselete code

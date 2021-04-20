@@ -98,13 +98,13 @@ def generate_response(trial,posterior):
 #%%
 #simulating a single trial+inference
 
-func = generate_trialHMM #function to use
+func = generate_trial #function to use
 #parameters:
-trial_length = 5 #trial length
+trial_length = 50 #trial length
 p_signal = 0.5 #prob of signal trial
 mu_0 = 0; mu_1 = 1; mu_2 = 0 #means of gaussian for observations in states 0,1,2
 sigma = 1 #standard deviation of Gaussian
-q = 0.2 #constant probability of leaving
+q = 0.1 #constant probability of leaving
 signal_length_type = 0; signal_length = 10
 
 start = time.perf_counter()
@@ -119,12 +119,17 @@ print(time.perf_counter()-start)
 #plotting the associated signal and inferred posterior
 t = np.arange(0,len(observation),1)
 plt.plot(t,trial[1:], label='underlying signal')
-plt.plot(t,observation, label='observations')
-plt.legend(); plt.xlabel('timepoint'); plt.figure()
-plt.plot(posterior[1:,0],label='for s=0')
-plt.plot(posterior[1:,1],label='for s=1')
-plt.plot(posterior[1:,2],label='for s=2')
-plt.legend(); plt.ylabel('posterior'); plt.xlabel('timepoint')
+plt.yticks([0,1,2],labels = ['pre-signal', 'signal', 'post-signal'])
+plt.plot(t,observation, label='observations', 
+         marker = 'o', linestyle = 'dashed')
+plt.legend(); plt.xlabel('timepoint'); 
+plt.title('p_signal=%1.2f, q=%1.2f, N=%d'%(p_signal,q,trial_length))
+plt.figure()
+plt.plot(posterior[1:,0],label='P(X=0|Y{1:t})')
+plt.plot(posterior[1:,1],label='P(X=1|Y{1:t})')
+plt.plot(posterior[1:,2],label='P(X=2|Y{1:t})')
+plt.legend(); plt.ylabel('posterior'); plt.xlabel('time')
+plt.title('p_signal=%1.2f, q=%1.2f, N=%d'%(p_signal,q,trial_length))
 plt.figure()
 
 #%%
@@ -386,11 +391,11 @@ def generate_responseDiscrete(trial,posterior):
 
 func = generate_trialHMMDiscrete #function to use
 #parameters:
-trial_length = 10 #trial length
+trial_length = 50 #trial length
 p_signal = 0.5 #prob of signal trial
-eta= 0.9
+eta= 0.7
 eta_0 = eta; eta_1 = eta; eta_2 = eta #confusabilities for the 3 states
-q = 0.00 #constant probability of leaving
+q = 0.1 #constant probability of leaving
 signal_length_type = 0; signal_length = 10
 
 start = time.perf_counter()
@@ -405,11 +410,20 @@ print(time.perf_counter()-start)
 fig,ax = plt.subplots(1,1)
 t = np.arange(1,trial_length+1,1)
 ax.plot(t,trial[1:], label='underlying signal')
+ax.set_yticks([0,1,2])
+ax.set_yticklabels(['pre-signal', 'signal', 'post-signal'])
 ax.scatter(t,observation, label='observations',color ='green')
-ax.plot(t,posterior[1:,1], label='posterior for s=1')
+ax.legend();
+ax.set_title('q=%1.2f,eta=%1.1f,N=%d'%(q,eta,trial_length))
 
-ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left');
-ax.set_title('eta=%1.1f,n=%d'%(eta,trial_length))
+plt.figure()
+plt.plot(posterior[1:,0],label='P(X=0|Y{1:t})')
+plt.plot(posterior[1:,1],label='P(X=1|Y{1:t})')
+plt.plot(posterior[1:,2],label='P(X=2|Y{1:t})')
+plt.legend();
+plt.ylabel('posterior'); plt.xlabel('time')
+plt.title('q=%1.2f,eta=%1.1f,N=%d'%(q,eta,trial_length))
+plt.figure()
 
 #%%
 #generating trial(s) - using generate_trial or generate_trialHMM
