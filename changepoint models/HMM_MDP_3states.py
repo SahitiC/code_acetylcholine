@@ -260,18 +260,17 @@ def getPolicy(b,db,rounding,etaL,etaH,I,O,s,I_N,PX_s,R,cost,p_signal,q,
 
 #%%
 #use the function, getPolicy
-db = 0.01
+trial_length = 10;
+p_signal = 0.3; q = 0.1
+etaL = 0.6; etaH = 0.9
+signal_length_type = 0; signal_length = 10
+db = 0.001
 b = np.arange(0.0,1.+2*db,db) #discrete belief space use for b0,b1 and b2
 rounding = 3;
 b = np.round(b,rounding)
-
-etaL = 0.6; etaH = 0.9 #two levels of eta for the two internal states
 c00 = 0.00; c10 = 0.00; c01 = 0.02; c11 = 0.02
 #magnitude of costs on going from i to j internal states
-
 cost = np.array([[c00,c01],[c10,c11]])
-p_signal = 0.5; q = 0.05
-trial_length = 100 #trial length
 
 compare = 1; beta = 50; 
 
@@ -320,7 +319,7 @@ cmap = matplotlib.cm.get_cmap('viridis', 3)
 norm = matplotlib.colors.BoundaryNorm(np.arange(0, 2, 1), cmap.N)
 plt.ylabel('belief for signal'); plt.xlabel('belief for postsignal')
 #plt.title('policy, t=%d'%(i,)); 
-plt.title('policy, t=%d,q=%1.1f,costi1=%1.2fetaL=%1.1f,etaH=%1.1f'%(i,
+plt.title('policy, t=%d,q=%1.1f,costi1=%1.2f,etaL=%1.1f,etaH=%1.1f'%(i,
                 q,c11,etaL,etaH)); 
 
 mat = plt.imshow(policy[:,:,0,i],cmap=cmap,vmin =-0.5,vmax = 2.5, extent=[0,1,1,0])
@@ -465,21 +464,15 @@ def generate_responseDiscretePolicy(trial,posterior):
 
 #%%
 
-trial_length = 10;
-p_signal = 0.5; q = 0.1
-etaL = 0.6; etaH = 0.9 #two levels of eta for the two internal states
+trial_length = 50;
+p_signal = 0.5; q = 0.3
+etaL = 0.6; etaH = 0.9
 signal_length_type = 0; signal_length = 10
 db = 0.01
 b = np.arange(0.0,1.+2*db,db) #discrete belief space use for b0,b1 and b2
-rounding = 3;
+rounding = 2;
 b = np.round(b,rounding)
-cost = np.array([[0.0,0.0],[0.03,0.03]])
-
-
-c00 = 0.00; c10 = 0.00; c01 = 0.03; c11 = 0.02
-#magnitude of costs on going from i to j internal states
-cost = np.array([[c00,c01],[c10,c11]])
-p_signal = 0.5; q = 0.05
+cost = np.array([[0.0,0.0],[0.02,0.02]])
 compare = 1; beta = 50; 
 
 I = np.array([0,1]) #internal state space : choose low or high eta levels
@@ -527,16 +520,7 @@ ax[1].legend(bbox_to_anchor=(1.05, 1), loc='upper left')
 
 
 #%%
-
-trial_length = 10;
-p_signal = 0.5; q = 0.3
-etaL = 0.6; etaH = 0.9
-signal_length_type = 0; signal_length = 10
-db = 0.01
-b = np.arange(0.0,1.+2*db,db) #discrete belief space use for b0,b1 and b2
-rounding = 2;
-b = np.round(b,rounding)
-cost = np.array([[0.0,0.0],[0.02,0.02]])
+#multiple trials
 
 nTrials = 1000
 posteriorTrials = np.full((nTrials,trial_length+1,3),0.0)
@@ -588,19 +572,16 @@ plt.xlabel('time'); plt.title('Avg runs--non-signal trials, etaH=%1.2f, etaL=%1.
 #looking at performance at different q and trial length
 
 #parameters:
-c00 = 0.00; c10 = 0.00; c01 = 0.02; c11 = 0.02
-#magnitude of costs on going from i to j internal states
-cost = np.array([[c00,c01],[c10,c11]])
-etaL = 0.6; etaH = 0.9 #two levels of eta for the two internal states
-compare = 1; beta = 50;  #use softmax with beta
 trial_length = 10;
-p_signal = 0.5; q = 0.1
+p_signal = 0.5; q = 0.3
+etaL = 0.6; etaH = 0.9
 signal_length_type = 0; signal_length = 10
-
 db = 0.01
 b = np.arange(0.0,1.+2*db,db) #discrete belief space use for b0,b1 and b2
 rounding = 2;
 b = np.round(b,rounding)
+cost = np.array([[0.0,0.0],[0.02,0.02]])
+compare = 1; beta = 50;  #use softmax with beta
 
 nTrials = 100
 
