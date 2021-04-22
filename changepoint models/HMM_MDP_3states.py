@@ -3,7 +3,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib
 import time
-import seaborn as sns
 
 #%%
 def interpolate1d(x, x_0, x_1, dx,func_0,func_1):
@@ -137,6 +136,13 @@ def getPolicy(b,db,rounding,etaL,etaH,I,O,s,I_N,PX_s,R,cost,p_signal,q,
                 #choose optimal action
                 if compare == 0: #max
                 
+                    #value[i,j,0,t] = np.max([v[0], v[1]])
+                    
+                    #if v[0]==v[1]:policy[i,j,0,t]=2
+                    #elif v[0]>v[1]:policy[i,j,0,t]=0
+                    #elif v[0]<v[1]:policy[i,j,0,t]=1   
+
+                
                     value[i,j,0,t] = np.max([round(v[0],rounding), round(v[1],rounding)])
                     
                     if round(v[0],rounding)==round(v[1],rounding):policy[i,j,0,t]=2
@@ -144,15 +150,23 @@ def getPolicy(b,db,rounding,etaL,etaH,I,O,s,I_N,PX_s,R,cost,p_signal,q,
                     elif round(v[0],rounding)<round(v[1],rounding):policy[i,j,0,t]=1   
                            
                 elif compare == 1:#soft max
-                    
-                    r = np.round(softmax(v,beta),rounding)
+                
+                    r = softmax(v,beta)
                      
-                    value[i,j,0,t] = np.round(v[np.where(r == np.max(
-                        r))[0][0]],rounding)   
+                    value[i,j,0,t] = v[np.where(r == np.max(r))[0][0]]   
                     
                     if r[0]== r[1]:policy[i,j,0,t]=2
                     elif r[0]>r[1]:policy[i,j,0,t]=0
                     elif r[0]<r[1]:policy[i,j,0,t]=1   
+                    
+                    #r = np.round(softmax(v,beta),rounding)
+                     
+                    #value[i,j,0,t] = np.round(v[np.where(r == np.max(
+                        #r))[0][0]],rounding)   
+                    
+                    #if r[0]== r[1]:policy[i,j,0,t]=2
+                    #elif r[0]>r[1]:policy[i,j,0,t]=0
+                    #elif r[0]<r[1]:policy[i,j,0,t]=1   
                 
                 j = j+1
                 
@@ -237,6 +251,13 @@ def getPolicy(b,db,rounding,etaL,etaH,I,O,s,I_N,PX_s,R,cost,p_signal,q,
                 #choose optimal action
                 if compare == 0: #max
                 
+                    #value[i,j,1,t] = np.max([v[0], v[1]])
+                    
+                    #if v[0]==v[1]:policy[i,j,1,t]=2
+                    #elif v[0]>v[1]:policy[i,j,1,t]=0
+                    #elif v[0]<v[1]:policy[i,j,1,t]=1   
+
+                
                     value[i,j,1,t] = np.max([round(v[0],rounding), round(v[1],rounding)])
                     
                     if round(v[0],rounding)==round(v[1],rounding):policy[i,j,1,t]=2
@@ -244,35 +265,47 @@ def getPolicy(b,db,rounding,etaL,etaH,I,O,s,I_N,PX_s,R,cost,p_signal,q,
                     elif round(v[0],rounding)<round(v[1],rounding):policy[i,j,1,t]=1   
                            
                 elif compare == 1:#soft max
-                    
-                    r = np.round(softmax(v,beta),rounding)
+                
+                    r = softmax(v,beta)
                      
-                    value[i,j,1,t] = np.round(v[np.where(r == np.max(
-                        r))[0][0]],rounding)   
-                    
+                    value[i,j,1,t] = v[np.where(r == np.max(r))[0][0]]   
+                
                     if r[0]== r[1]:policy[i,j,1,t]=2
                     elif r[0]>r[1]:policy[i,j,1,t]=0
                     elif r[0]<r[1]:policy[i,j,1,t]=1   
+                    
+                    #r = np.round(softmax(v,beta),rounding)
+                     
+                    #value[i,j,1,t] = np.round(v[np.where(r == np.max(
+                     #r))[0][0]],rounding)   
+                    
+                    #if r[0]== r[1]:policy[i,j,1,t]=2
+                    #elif r[0]>r[1]:policy[i,j,1,t]=0
+                    #elif r[0]<r[1]:policy[i,j,1,t]=1   
                 
                 j = j+1
                 
     return value,value0,value1,policy
 
 #%%
+
 #use the function, getPolicy
 trial_length = 10;
 p_signal = 0.3; q = 0.1
-etaL = 0.6; etaH = 0.9
-signal_length_type = 0; signal_length = 10
-db = 0.001
+
+db=0.01
 b = np.arange(0.0,1.+2*db,db) #discrete belief space use for b0,b1 and b2
-rounding = 3;
+rounding = 2;
 b = np.round(b,rounding)
-c00 = 0.00; c10 = 0.00; c01 = 0.02; c11 = 0.02
+
+etaL = 0.6; etaH = 0.9
+
+c00 = 0.00; c01 = 0.04; 
+c10 = 0.00; c11 = 0.02
 #magnitude of costs on going from i to j internal states
 cost = np.array([[c00,c01],[c10,c11]])
-
-compare = 1; beta = 50; 
+p_signal = 0.5; q = 0.2
+trial_length = 20 #trial length
 
 I = np.array([0,1]) #internal state space : choose low or high eta levels
 O = np.array([0,1]) #observation space: 0/1
@@ -283,46 +316,54 @@ R = np.array([[1,0],[0,1]])
 #R00,R01,R10,R11 (Rij = rewards on choosing Hi when Hj is true)
 
 
+compare = 1; beta = 50; 
 
-start  = time.perf_counter()
 
 value,value0,value1,policy = getPolicy(b,db,rounding,etaL,etaH,I,O,s,I_N,PX_s,R,cost,p_signal,q,
               trial_length,compare,beta)
             
-print(time.perf_counter()-start)
 
 #%%
 
-i = 0; j = 0
-plt.imshow(value[:,:,j,i], extent=[0,1,1,0]);
+#plot value and policy at different belief states and timesteps
+i = 9; j = 0
+plt.imshow(value[:-1,:-1,j,i], extent=[0,1,1,0]);
+
 plt.ylabel('belief for signal'); plt.xlabel('belief for postsignal')
 #plt.title('value, t=%d'%(i,)); plt.colorbar(); plt.figure()
-plt.title('value, t=%d,q=%1.1f,costi1=%1.2f,etaL=%1.1f,etaH=%1.1f'%(i,
-            q,c11,etaL,etaH)); plt.colorbar(); plt.figure()
+plt.title('value, t=%d,q=%1.2f,cost01=%1.2f,cost11=%1.2f,etaL=%1.1f,etaH=%1.1f'%(i,
+            q,c01,c11,etaL,etaH)); plt.colorbar(); plt.figure()
 
-plt.imshow(value0[:,:,0,i], extent=[0,1,1,0]);
+plt.imshow(value0[:-1,:-1,j,i], extent=[0,1,1,0]);
 plt.ylabel('belief for signal'); plt.xlabel('belief for postsignal')
-plt.title('Q0, t=%d,q=%1.1f,costi1=%1.2f,eta=%1.1f'%(i,q,c11,etaL)); plt.colorbar(); plt.figure()
+plt.title('Q0, t=%d,q=%1.2f,cost01=%1.2f,cost11=%1.2f,etaL=%1.1f,etaH=%1.1f'%(i,
+            q,c01,c11,etaL,etaH)); plt.colorbar(); plt.figure()
 
-plt.imshow(value1[:,:,0,i], extent=[0,1,1,0]);
+plt.imshow(value1[:-1,:-1,j,i], extent=[0,1,1,0]);
 plt.ylabel('belief for signal'); plt.xlabel('belief for postsignal')
-plt.title('Q1, t=%d,q=%1.1f,costi1=%1.2f,eta=%1.1f'%(i,q,c11,etaH)); plt.colorbar(); plt.figure()
+plt.title('Q1, t=%d,q=%1.2f,cost01=%1.2f,cost11=%1.2f,etaL=%1.1f,etaH=%1.1f'%(i,
+            q,c01,c11,etaL,etaH)); plt.colorbar(); plt.figure()
 
-plt.imshow(value0[:,:,0,i]-value1[:,:,0,i], extent=[0,1,1,0]);
+plt.imshow(value0[:-1,:-1,j,i]-value1[:-1,:-1,j,i], extent=[0,1,1,0]);
 plt.ylabel('belief for signal'); plt.xlabel('belief for postsignal')
-plt.title('Q0-Q1, t=%d,q=%1.1f,costi1=%1.2f,etaL=%1.1f,etaH=%1.1f'%(i,
-                 q,c11,etaL,etaH)); plt.colorbar(); plt.figure()
+plt.title('Q0-Q1, IS=%d, q=%1.2f, t=%d'%(j,q,i))
+#plt.title('Q0-Q1, t=%d,q=%1.2f,cost01=%1.2f,cost11=%1.2f,etaL=%1.1f,etaH=%1.1f'%(i,
+            #q,c01,c11,etaL,etaH)); 
+plt.colorbar(); plt.figure()
 
 
 #cmap = matplotlib.colors.ListedColormap(colorsList)
 cmap = matplotlib.cm.get_cmap('viridis', 3)
 norm = matplotlib.colors.BoundaryNorm(np.arange(0, 2, 1), cmap.N)
 plt.ylabel('belief for signal'); plt.xlabel('belief for postsignal')
-#plt.title('policy, t=%d'%(i,)); 
-plt.title('policy, t=%d,q=%1.1f,costi1=%1.2f,etaL=%1.1f,etaH=%1.1f'%(i,
-                q,c11,etaL,etaH)); 
 
-mat = plt.imshow(policy[:,:,0,i],cmap=cmap,vmin =-0.5,vmax = 2.5, extent=[0,1,1,0])
+
+
+plt.title('policy, t=%d,q=%1.2f,cost01=%1.2f,cost11=%1.2f,etaL=%1.1f,etaH=%1.1f'%(i,
+            q,c01,c11,etaL,etaH)); 
+
+
+mat = plt.imshow(policy[:-1,:-1,j,i],cmap=cmap,vmin =-0.5,vmax = 2.5, extent=[0,1,1,0])
 plt.colorbar(mat,ticks=np.linspace(0,2,3)); 
 
 
@@ -376,7 +417,8 @@ def generate_trialPolicy(trial_length, p_signal, q,
     return trial, trial_signal
 
 def inferenceDiscretePolicy(trial,trial_length,p_signal,etaL,etaH,
-                            value0,value1,cost,b,db,beta,rounding):
+                            value0,value1,cost,b,db,beta,rounding,
+                            initial_IS):
         
     n = trial_length  
     
@@ -386,7 +428,7 @@ def inferenceDiscretePolicy(trial,trial_length,p_signal,etaL,etaH,
     posterior[0,:] = posterior[0,:]/(np.sum(posterior[0,:]))
     #array for internal state and eta
     internalState = np.full((n+1,1),0); #IS 
-    internalState[0] = 0 #initialise initial IS at j=-1 ot t=0
+    internalState[0] = initial_IS #initialise initial IS at j=-1 ot t=0
     etaArr = np.full((n,1),0.0) #corresponding eta (determined by IS)
     action = np.full((n,1),0); #array for action = IS for each t>0
     eta = [etaL,etaH] #the two eta levels
@@ -416,7 +458,7 @@ def inferenceDiscretePolicy(trial,trial_length,p_signal,etaL,etaH,
             
         Q = np.array([q0,q1])
         r = np.round(softmax(Q,beta),rounding)
-        if r[0]==r[1]:internalState[j+1]=1; action[j] = 2; etaArr[j] = eta[1]
+        if r[0]==r[1]:internalState[j+1]=1; action[j] = 1; etaArr[j] = eta[1]
         elif r[0]>r[1]:internalState[j+1]=0; action[j] = 0; etaArr[j] = eta[0]
         elif r[0]<r[1]:internalState[j+1]=1; action[j] = 1;  etaArr[j] = eta[1] 
 
@@ -464,16 +506,19 @@ def generate_responseDiscretePolicy(trial,posterior):
 
 #%%
 
-trial_length = 50;
-p_signal = 0.5; q = 0.3
-etaL = 0.6; etaH = 0.9
-signal_length_type = 0; signal_length = 10
 db = 0.01
 b = np.arange(0.0,1.+2*db,db) #discrete belief space use for b0,b1 and b2
 rounding = 2;
 b = np.round(b,rounding)
-cost = np.array([[0.0,0.0],[0.02,0.02]])
-compare = 1; beta = 50; 
+
+etaL = 0.6; etaH = 0.9 #two levels of eta for the two internal states
+
+c00 = 0.00; c01 = 0.04; 
+c10 = 0.01; c11 = 0.02
+#magnitude of costs on going from i to j internal states
+cost = np.array([[c00,c01],[c10,c11]])
+p_signal = 0.5; q = 0.1
+trial_length = 10#trial length
 
 I = np.array([0,1]) #internal state space : choose low or high eta levels
 O = np.array([0,1]) #observation space: 0/1
@@ -483,6 +528,7 @@ PX_s = np.array([[[etaL,1-etaL,etaL],[1-etaL,etaL,1-etaL]],[[etaH,1-etaH,etaH],[
 R = np.array([[1,0],[0,1]]) 
 #R00,R01,R10,R11 (Rij = rewards on choosing Hi when Hj is true)
 
+compare = 1; beta = 50; 
 
 start = time.perf_counter()
 
@@ -493,12 +539,13 @@ print(time.perf_counter()-start)
 
 #%%
 signal_length_type = 0; signal_length = 1
-
+initial_IS = 0
 
 trial, trial_signal = generate_trialPolicy(trial_length, p_signal, q,
                          signal_length_type,signal_length)
-observation, posterior, internalState, action = inferenceDiscretePolicy(trial,trial_length,p_signal,etaL,etaH,
-                            value0,value1,cost,b,db,beta,rounding)
+observation, posterior, internalState, action = inferenceDiscretePolicy(trial,
+            trial_length,p_signal,etaL,etaH,value0,value1,cost,b,db,beta,
+            rounding, initial_IS)
 inferred_state,response,hit,miss,cr,fa = generate_responseDiscretePolicy(trial,posterior)
 
 
@@ -509,45 +556,57 @@ ax[0].plot(t[1:],trial[1:], label='underlying signal')
 ax[0].scatter(t[1:],observation, label='observations',color ='orange')
 ax[0].plot(t,posterior[:,1], label='posterior for s=1')
 ax[0].plot(t,posterior[:,2], label='posterior for s=2')
+ax[0].set_xticks(np.arange(0,trial_length+1,int(trial_length/10)))
+ax[0].set_xticklabels(np.arange(0,trial_length+1,int(trial_length/10)))
 
 ax[1].plot(t,internalState[:], label= 'internal state', linestyle ='dashed', 
            marker ='o')
 ax[1].plot(t[1:],action, label = 'action', linestyle ='dashed', 
            marker ='o')
-
+ax[1].set_xticks(np.arange(0,trial_length+1,int(trial_length/10)))
+ax[1].set_xticklabels(np.arange(0,trial_length+1,int(trial_length/10)))
 ax[0].legend(bbox_to_anchor=(1.05, 1), loc='upper left');
 ax[1].legend(bbox_to_anchor=(1.05, 1), loc='upper left')
 
 
 #%%
-#multiple trials
+
+#run multiple trials
+
+start = time.perf_counter()
+
 
 nTrials = 1000
 posteriorTrials = np.full((nTrials,trial_length+1,3),0.0)
-actionTrials = np.full((nTrials,trial_length,1),0.0)
-trialType = np.full((nTrials,1),0.0)
-signalTrial =  np.full((nTrials,trial_length,1),0.0) #underlying signal
+actionTrials = np.full((nTrials,trial_length),0.0)
+trialType = np.full((nTrials),0.0)
+signalTrial =  np.full((nTrials,trial_length),0.0) #underlying signal
 
 for nT in range(nTrials):
     trial, trial_signal = generate_trialPolicy(trial_length, p_signal, q,
                              signal_length_type,signal_length)
     observation, posterior, internalState, action = inferenceDiscretePolicy(trial,trial_length,p_signal,etaL,etaH,
-                                value0,value1,cost,b,db,beta,rounding)
+                                value0,value1,cost,b,db,beta,rounding,initial_IS)
     inferred_state,response,hit,miss,cr,fa = generate_responseDiscretePolicy(trial,posterior)
     posteriorTrials[nT,:,:] = posterior
-    signalTrial[nT,:,:] = trial[1:]
+    signalTrial[nT,:] = trial[1:,0]
     trialType[nT] = trial_signal
-    actionTrials[nT,:,:] = action
-    
+    actionTrials[nT,:] = action[:,0]
+ 
+numberAction1 = np.sum(actionTrials[:,:],axis=1)/trial_length
+avgAction1 = np.mean(numberAction1); stdAction1 = np.std(numberAction1)
+
+print(time.perf_counter()-start) 
+
 #%%
 t = np.arange(0,trial_length+1,1)
 #for signal trials
 avgPosterior = np.average(posteriorTrials[np.where(trialType==1)[0],:,:],axis=0)
-avgAction = np.average(actionTrials[np.where(trialType==1)[0],:,:],axis=0)
-avgSignal = np.average(signalTrial[np.where(trialType==1)[0],:,:],axis=0)
+avgAction = np.average(actionTrials[np.where(trialType==1)[0],:],axis=0)
+avgSignal = np.average(signalTrial[np.where(trialType==1)[0],:],axis=0)
 plt.plot(t,avgPosterior[:,1],label ='b(1)') 
 plt.plot(t,avgPosterior[:,2],label ='b(2)') 
-plt.plot(t[1:],avgSignal[:,0],label ='underlying signal') 
+#plt.plot(t[1:],avgSignal[:,0],label ='underlying signal') 
 plt.plot(t[1:],avgAction[:,0],label ='action',marker='o')
 plt.legend()
 plt.xlabel('time'); plt.title('Avg runs--signal trials, etaH=%1.2f, etaL=%1.2f, ci1=%1.2f,q=%1.1f'
@@ -567,34 +626,84 @@ plt.legend()
 plt.xlabel('time'); plt.title('Avg runs--non-signal trials, etaH=%1.2f, etaL=%1.2f, ci1=%1.2f,q=%1.1f'
                               %(etaH,etaL,c11,q))       
 
+#%%
+#run multiple trials
+nTrials = 2000
+posteriorTrials = np.full((nTrials,trial_length+1,3),0.0)
+actionTrials = np.full((nTrials,trial_length),0.0)
+trialType = np.full((nTrials),0.0)
+signalTrial =  np.full((nTrials,trial_length),0.0) #underlying signal
+
+p_signalArr = [0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0]
+avgAction1 = np.full((len(p_signalArr),1),0.0)
+stdAction1 = np.full((len(p_signalArr),1),0.0)
+
+for a in range(len(p_signalArr)):
+    p_signal = p_signalArr[a]
+    value,value0,value1,policy = getPolicy(b,db,rounding,etaL,etaH,I,O,s,I_N,PX_s,R,cost,p_signal,q,
+          trial_length,compare,beta)
+    
+    for nT in range(nTrials):
+        trial, trial_signal = generate_trialPolicy(trial_length, p_signal, q,
+                                 signal_length_type,signal_length)
+        observation, posterior, internalState, action = inferenceDiscretePolicy(trial,trial_length,p_signal,etaL,etaH,
+                                    value0,value1,cost,b,db,beta,rounding,initial_IS)
+        inferred_state,response,hit,miss,cr,fa = generate_responseDiscretePolicy(trial,posterior)
+        posteriorTrials[nT,:,:] = posterior
+        signalTrial[nT,:] = trial[1:,0]
+        trialType[nT] = trial_signal
+        actionTrials[nT,:] = action[:,0]
+     
+    numberAction1 = np.sum(actionTrials[:,:],axis=1)/trial_length
+    avgAction1[a] = np.mean(numberAction1); stdAction1[a] = np.std(numberAction1)
+
+#%%
+plt.plot(p_signalArr,avgAction1)
+plt.fill_between(p_signalArr, avgAction1[:,0]-stdAction1[:,0], 
+                 avgAction1[:,0]+stdAction1[:,0],  alpha = 0.2)
+plt.ylabel('Avg rate of choosing H'); plt.xlabel('p_signal')
+plt.title('N=%d,etaL=%1.2f,etaH=%1.2f'%(trial_length,etaL,etaH))
 
 #%%
 #looking at performance at different q and trial length
 
 #parameters:
 trial_length = 10;
+
 p_signal = 0.5; q = 0.3
+
 etaL = 0.6; etaH = 0.9
 signal_length_type = 0; signal_length = 10
 db = 0.01
 b = np.arange(0.0,1.+2*db,db) #discrete belief space use for b0,b1 and b2
 rounding = 2;
 b = np.round(b,rounding)
-cost = np.array([[0.0,0.0],[0.02,0.02]])
+
+
+c01=0.05; c11 = 0.01
+cost = np.array([[0.0,0.0],[c01,c11]])
+
 compare = 1; beta = 50;  #use softmax with beta
 
-nTrials = 100
 
-trial_lengthArr = [1,5,10,25,50] #75,100,125
-qArr = [0.01,0.2,0.5,0.7] #0.01,0.2,0.5,0.7
-trialTypeRates = np.full((len(qArr),len(trial_lengthArr),4),np.nan)
+nTrials = 3000
+signal_length_type = 0; signal_length = 1
+initial_IS = 0
+
+trial_lengthArr = [100] #1,5,10,25,50,75,100,125
+#qArr = [0.01,0.2,0.5,0.7] #0.01,0.2,0.5,0.7
+cArr =[0.01,0.02,0.03,0.04,0.05,0.06, 0.07,0.08]
+
+trialTypeRates = np.full((len(cArr),len(trial_lengthArr),4),np.nan)
 
 start = time.perf_counter()
 
 for t in range(len(trial_lengthArr)):
     trial_length= trial_lengthArr[t]
-    for s in range(len(qArr)) :
-        q = qArr[s]
+    for s in range(len(cArr)) :
+        #q = qArr[s]
+        c01=cArr[s]
+        cost = np.array([[0.0,0.0],[c01,c11]])
         trial_type = np.full((nTrials,3),0) #signal trial or not, start point of signal, signal len
         hit = 0; miss = 0; cr = 0; fa = 0
         value,value0,value1,policy = getPolicy(b,db,rounding,etaL,etaH,I,O,s,I_N,PX_s,R,cost,p_signal,q,
@@ -605,7 +714,7 @@ for t in range(len(trial_lengthArr)):
             trial, trial_signal = generate_trialPolicy(trial_length, p_signal, q,
                                      signal_length_type,signal_length)
             observation, posterior, internalState, action = inferenceDiscretePolicy(trial,trial_length,p_signal,etaL,etaH,
-                                    value0,value1,cost,b,db,beta,rounding)
+                                    value0,value1,cost,b,db,beta,rounding,initial_IS)
             inferred_state,response,hit0,miss0,cr0,fa0 = generate_responseDiscretePolicy(trial,posterior)
             
             hit = hit+hit0; miss = miss+miss0; cr = cr+cr0; fa = fa+fa0
@@ -618,6 +727,7 @@ print(time.perf_counter()-start)
 
 #%%
 #plot performance rates
+qArr = cArr
 for l in range(len(qArr)):
 
     a = trialTypeRates[l,:,0]/(trialTypeRates[l,:,0]+trialTypeRates[l,:,1])
@@ -625,8 +735,8 @@ for l in range(len(qArr)):
 
 plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left'); plt.xlabel('trial length')
 plt.ylabel('hit rates'); 
-plt.title('etaH=%1.2f, etaL=%1.2f,c01=%1.2f, c11=%1.2f,,q=%1.1f'
-                              %(etaH,etaL,c01,c11,q)) 
+plt.title('etaH=%1.2f, etaL=%1.2f,c01=%1.2f, c11=%1.2f'
+                              %(etaH,etaL,c01,c11)) 
 plt.figure()
 
 for l in range(len(qArr)):
@@ -636,8 +746,8 @@ for l in range(len(qArr)):
 
 plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left'); plt.xlabel('trial length')
 plt.ylabel('fa rates'); 
-plt.title('etaH=%1.2f, etaL=%1.2f,c01=%1.2f, c11=%1.2f,,q=%1.1f'
-                              %(etaH,etaL,c01,c11,q)) 
+plt.title('etaH=%1.2f, etaL=%1.2f,c01=%1.2f, c11=%1.2f'
+                              %(etaH,etaL,c01,c11)) 
 plt.figure()
 
 for l in range(len(trial_lengthArr)):
@@ -647,8 +757,8 @@ for l in range(len(trial_lengthArr)):
 
 plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left'); plt.xlabel('signal length')
 plt.ylabel('hit rates');
-plt.title('etaH=%1.2f, etaL=%1.2f,c01=%1.2f, c11=%1.2f,,q=%1.1f'
-                              %(etaH,etaL,c01,c11,q)) 
+plt.title('etaH=%1.2f, etaL=%1.2f,c01=%1.2f, c11=%1.2f'
+                              %(etaH,etaL,c01,c11)) 
 plt.figure()
 
 for l in range(len(trial_lengthArr)):
@@ -658,9 +768,33 @@ for l in range(len(trial_lengthArr)):
 
 plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left'); plt.xlabel('signal length')
 plt.ylabel('fa rates'); 
-plt.title('etaH=%1.2f, etaL=%1.2f,c01=%1.2f, c11=%1.2f,,q=%1.1f'
-                              %(etaH,etaL,c01,c11,q)) 
+plt.title('etaH=%1.2f, etaL=%1.2f,c01=%1.2f, c11=%1.2f'
+                              %(etaH,etaL,c01,c11)) 
 plt.figure()
+
+#%%
+qArr = cArr
+for l in range(len(trial_lengthArr)):
+
+    a = trialTypeRates[:,l,0]/(trialTypeRates[:,l,0]+trialTypeRates[:,l,1])
+    plt.plot(qArr,a, marker = 'o')
+
+plt.xlabel('c01')
+plt.ylabel('hit rates');
+plt.title('etaH=%1.2f, etaL=%1.2f, trial_length=%d,c11=%1.2f,q=%1.2f'
+                              %(etaH,etaL,trial_lengthArr[l],c11,q)) 
+plt.figure()
+
+for l in range(len(trial_lengthArr)):
+
+    a = trialTypeRates[:,l,3]/(trialTypeRates[:,l,2]+trialTypeRates[:,l,3])
+    plt.plot(qArr,a, marker = 'o')
+plt.xlabel('c01')
+plt.ylabel('fa rates');
+plt.title('etaH=%1.2f, etaL=%1.2f, trial_length=%d,c11=%1.2f,q=%1.2f'
+                              %(etaH,etaL,trial_lengthArr[l],c11,q)) 
+plt.figure()
+
 
 #%%
 #obselete code
