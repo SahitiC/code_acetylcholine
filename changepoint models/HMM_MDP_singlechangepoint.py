@@ -330,16 +330,13 @@ def inferenceDiscretePolicy(trial,trial_length,p_signal,
                      value1[idx+1,internalState[j][0],j])
             
         elif idx >= int(1/db):
-            q0 = interpolate(posterior[j,1],b[idx], b[idx], db, 
-                             value0[idx,internalState[j][0],j],
-                             value0[idx,internalState[j][0],j])
-            q1 = interpolate(posterior[j,1],b[idx], b[idx], db, 
-                     value1[idx,internalState[j][0],j],
-                     value1[idx,internalState[j][0],j])
+            q0 = value0[idx,internalState[j][0],j]
+            q1 = value1[idx,internalState[j][0],j]
         
         q = np.array([q0,q1])
-        r = np.round(softmax(q,beta),rounding)
-        if r[0]== r[1]:internalState[j+1]=1; action[j] = np.random.binomial(1,0.5); etaArr[j] = eta[1]
+        r = softmax(q,beta)
+        #r = np.round(softmax(q,beta),rounding)
+        if r[0]== r[1]:internalState[j+1]=1; action[j] = 1; etaArr[j] = eta[1]
         elif r[0]>r[1]:internalState[j+1]=0; action[j] = 0; etaArr[j] = eta[0]
         elif r[0]<r[1]:internalState[j+1]=1; action[j] = 1;  etaArr[j] = eta[1] 
 
@@ -396,7 +393,7 @@ s = np.array([0,1]) #environmental state space
 I_N = np.array([0,1]) #states to choose at N (H0 or H1) 
 PX_s = np.array([[[etaL,1-etaL],[1-etaL,etaL]],[[etaH,1-etaH],[1-etaH,etaH]]])
 R = np.array([[1,0],[0,1]]) #R00,R01,R10,R11 (Rij = rewards on choosing Hi when Hj is true)
-c00 = 0.00; c10 = 0.00; c01 = 0.00; c11 = 0.00
+c00 = 0.00; c10 = 0.00; c01 = 0.03; c11 = 0.02
 #magnitude of costs on going from i to j internal states
 cost = np.array([[c00,c01],[c10,c11]])
 p_signal = 0.5; 
@@ -437,6 +434,29 @@ ax[0].legend(bbox_to_anchor=(1.05, 1), loc='upper left');
 ax[1].legend(bbox_to_anchor=(1.05, 1), loc='upper left')
 
 #%%
+db = 0.001
+b = np.arange(0.0,1.0+(db),db) #discrete belief space to use for b0 and b1
+b = np.round(b,3);rounding = 3
+etaL = 0.7; etaH = 0.8 #two levels of eta for the two internal states
+I = np.array([0,1]) #internal state space : choose low or high eta levels
+O = np.array([0,1]) #observation space: 0/1
+s = np.array([0,1]) #environmental state space
+I_N = np.array([0,1]) #states to choose at N (H0 or H1) 
+PX_s = np.array([[[etaL,1-etaL],[1-etaL,etaL]],[[etaH,1-etaH],[1-etaH,etaH]]])
+R = np.array([[1,0],[0,1]]) #R00,R01,R10,R11 (Rij = rewards on choosing Hi when Hj is true)
+c00 = 0.00; c10 = 0.00; c01 = 0.03; c11 = 0.03
+#magnitude of costs on going from i to j internal states
+cost = np.array([[c00,c01],[c10,c11]])
+p_signal = 0.5; 
+
+compare = 1; beta = 50; 
+
+trial_length = 10 #trial 
+value0,value1,value,policy=getOptimalPolicy(b,I,O,etaL,
+                        etaH,s,I_N,PX_s,R,cost,p_signal,trial_length,db,
+                        compare,beta)
+
+#%%
 #average trajectories
 
 nTrials = 2000
@@ -460,63 +480,97 @@ for nT in range(nTrials):
 #%%
 t = np.arange(0,trial_length+1,1)
 #for signal trials
-cmap = matplotlib.cm.get_cmap('viridis', 3)
+cmap = matplotlib.cm.get_cmap('Pastel1', 3)
 norm = matplotlib.colors.BoundaryNorm(np.arange(0, 2, 1), cmap.N)
-mat = plt.imshow(policy[:,0,:-1],cmap=cmap,vmin =-0.5,vmax = 2.5,
+mat = plt.imshow(policy[:,1,:-1],cmap=cmap,vmin =-0.5,vmax = 2.5,
            interpolation='nearest',extent=[0,9,1,0],aspect=9)
 plt.ylabel('belief state'); plt.xlabel('time'); 
-plt.title('policy,cost01=%1.2f,cost11=%1.2f,etaL=%1.1f,etaH=%1.1f'%(
-    c01,c11,etaL,etaH)); plt.colorbar(mat,ticks=np.linspace(0,2,3));
+cbar = plt.colorbar(mat,ticks=np.linspace(0,2,3));
+cbar.set_ticklabels(['L','H','L/H'])
+
 
 avgPosterior = np.average(posteriorTrials[np.where(trialType==1)[0],:,:],axis=0)
 avgAction = np.average(actionTrials[np.where(trialType==1)[0],:,:],axis=0)
 
-plt.plot(t[:-1],avgPosterior[1:,1],label ='b(1)') 
-plt.plot(t[:-1],avgAction[:,0],label ='action')
+stdPosterior = np.std(posteriorTrials[np.where(trialType==1)[0],:,:],axis=0)
+stdAction = np.std(actionTrials[np.where(trialType==1)[0],:,:],axis=0)
+
+
+plt.plot(t[:-1],avgPosterior[1:,1],label ='avg b(1)-signal trials') 
+plt.fill_between(t[:-1,],avgPosterior[1:,1]-stdPosterior[1:,1],
+                 avgPosterior[1:,1]+stdPosterior[1:,1],alpha=0.2)
+plt.plot(t[:-1],avgAction[:,0],label ='avg action-signal trials')
+plt.fill_between(t[:-1,],avgAction[:,0]-stdAction[:,0],
+                 avgAction[:,0]+stdAction[:,0],alpha=0.1)
 plt.legend()
-plt.xlabel('time'); plt.title('Avg runs--signal trials, etaH=%1.2f, etaL=%1.2f, ci1=%1.2f'
-                              %(etaH,etaL,c11)) 
+plt.xlabel('time'); 
 plt.ylim(1.02,-0.02)
-plt.figure()
+
  
 #for  non-signal trials
 avgPosterior = np.average(posteriorTrials[np.where(trialType==0)[0],:,:],axis=0)
 avgAction = np.average(actionTrials[np.where(trialType==0)[0],:,:],axis=0)
-plt.plot(t,avgPosterior[:,1],label ='b(1)') 
-plt.plot(t[1:],avgAction[:,0],label ='action',marker='o')
+stdPosterior = np.std(posteriorTrials[np.where(trialType==0)[0],:,:],axis=0)
+stdAction = np.std(actionTrials[np.where(trialType==0)[0],:,:],axis=0)
+
+
+plt.plot(t[:-1],avgPosterior[1:,1],label ='avg b(1)-non signal trials') 
+plt.fill_between(t[:-1,],avgPosterior[1:,1]-stdPosterior[1:,1],
+                 avgPosterior[1:,1]+stdPosterior[1:,1],alpha=0.2)
+plt.plot(t[:-1],avgAction[:,0],label ='avg action-non signal trials')
+plt.fill_between(t[:-1,],avgAction[:,0]-stdAction[:,0],
+                 avgAction[:,0]+stdAction[:,0],alpha=0.1)
+
+plt.xlabel('time'); 
+
+plt.ylim(1.02,-0.02)
+
+plt.title('optimal action, etaH=%1.2f, etaL=%1.2f,ci1=%1.2f' 
+          %(etaH,etaL,c01)) 
+plt.legend(bbox_to_anchor=(1.2, 1), loc='upper left')
+
+#%%  
+#avg plots without overlaying on heatmaps
+
+#signal
+avgPosterior = np.average(posteriorTrials[np.where(trialType==1)[0],:,:],axis=0)
+avgAction = np.average(actionTrials[np.where(trialType==1)[0],:,:],axis=0)
+
+stdPosterior = np.std(posteriorTrials[np.where(trialType==1)[0],:,:],axis=0)
+stdAction = np.std(actionTrials[np.where(trialType==1)[0],:,:],axis=0)
+
+
+plt.plot(t[:-1],avgPosterior[1:,1],label ='avg b(1)-signal trials') 
+plt.fill_between(t[:-1,],avgPosterior[1:,1]-stdPosterior[1:,1],
+                 avgPosterior[1:,1]+stdPosterior[1:,1],alpha=0.2)
+plt.plot(t[:-1],avgAction[:,0],label ='avg action-signal trials')
+plt.fill_between(t[:-1,],avgAction[:,0]-stdAction[:,0],
+                 avgAction[:,0]+stdAction[:,0],alpha=0.2)
 plt.legend()
-plt.xlabel('time'); plt.title('Avg runs--non-signal trials, etaH=%1.2f, etaL=%1.2f, ci1=%1.2f'
-                              %(etaH,etaL,c11))   
-    
-#%%
+plt.xlabel('time'); 
+plt.title('etaH=%1.2f, etaL=%1.2f, ci1=%1.2f'
+                              %(etaH,etaL,c11)) 
+plt.ylim(1.02,-0.02)
 
-plt.imshow(value[:,0,:],extent=[0,10,10,0])
-plt.yticks(np.arange(0,12,2),np.round(np.arange(0,1.2,0.2),1))
-plt.ylabel('belief state'); plt.xlabel('time'); 
-plt.title('Value'); plt.colorbar()
-plt.figure()
-plt.imshow(value0[:,0,:]-value1[:,0,:],extent=[0,10,10,0])
-plt.yticks(np.arange(0,12,2),np.round(np.arange(0,1.2,0.2),1))
-plt.ylabel('belief state'); plt.xlabel('time'); 
-plt.title('Q0-Q1'); plt.colorbar()
-plt.figure()
-plt.imshow(value0[:,0,:],extent=[0,10,10,0])
-plt.yticks(np.arange(0,12,2),np.round(np.arange(0,1.2,0.2),1))
-plt.ylabel('belief state'); plt.xlabel('time'); 
-plt.title('Q0'); plt.colorbar()
-plt.figure()
-plt.imshow(value1[:,0,:],extent=[0,10,10,0])
-plt.yticks(np.arange(0,12,2),np.round(np.arange(0,1.2,0.2),1))
-plt.ylabel('belief state'); plt.xlabel('time'); 
-plt.title('Q1'); plt.colorbar()
-plt.figure()
-cmap = matplotlib.cm.get_cmap('viridis', 3)
-norm = matplotlib.colors.BoundaryNorm(np.arange(0, 2, 1), cmap.N)
-plt.ylabel('belief state'); plt.xlabel('time')
-plt.title('policy'); 
-mat = plt.imshow(policy[:,0,:],cmap=cmap,vmin =-0.5,vmax = 2.5, extent=[0,10,10,0])
-plt.yticks(np.arange(0,12,2),np.round(np.arange(0,1.2,0.2),1))
-plt.colorbar(mat,ticks=np.linspace(0,2,3)); 
 plt.figure()
 
+#non-signal
+avgPosterior = np.average(posteriorTrials[np.where(trialType==0)[0],:,:],axis=0)
+avgAction = np.average(actionTrials[np.where(trialType==0)[0],:,:],axis=0)
+stdPosterior = np.std(posteriorTrials[np.where(trialType==0)[0],:,:],axis=0)
+stdAction = np.std(actionTrials[np.where(trialType==0)[0],:,:],axis=0)
 
+
+plt.plot(t[:-1],avgPosterior[1:,1],label ='avg b(1)-non signal trials') 
+plt.fill_between(t[:-1,],avgPosterior[1:,1]-stdPosterior[1:,1],
+                 avgPosterior[1:,1]+stdPosterior[1:,1],alpha=0.2)
+plt.plot(t[:-1],avgAction[:,0],label ='avg action-non signal trials')
+plt.fill_between(t[:-1,],avgAction[:,0]-stdAction[:,0],
+                 avgAction[:,0]+stdAction[:,0],alpha=0.2)
+
+plt.xlabel('time'); 
+
+plt.ylim(1.02,-0.02)
+
+plt.title('etaH=%1.2f, etaL=%1.2f, ci1=%1.2f' %(etaH,etaL,c11)) 
+plt.legend(bbox_to_anchor=(1.2, 1), loc='upper left')
