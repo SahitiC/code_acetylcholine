@@ -288,13 +288,17 @@ def getPolicy(b,db,rounding,etaL,etaH,I,O,s,I_N,PX_s,R,cost,p_signal,q,
     return value,value0,value1,policy
 
 #%%
-#use the function to 'getPolicy'
-db = 0.01
+
+#use the function, getPolicy
+trial_length = 10;
+p_signal = 0.3; q = 0.1
+
+db=0.01
 b = np.arange(0.0,1.+2*db,db) #discrete belief space use for b0,b1 and b2
 rounding = 2;
 b = np.round(b,rounding)
 
-etaL = 0.6; etaH = 0.9 #two levels of eta for the two internal states
+etaL = 0.6; etaH = 0.9
 
 c00 = 0.00; c01 = 0.02; 
 c10 = 0.00; c11 = 0.02
@@ -311,15 +315,20 @@ PX_s = np.array([[[etaL,1-etaL,etaL],[1-etaL,etaL,1-etaL]],[[etaH,1-etaH,etaH],[
 R = np.array([[1,0],[0,1]]) 
 #R00,R01,R10,R11 (Rij = rewards on choosing Hi when Hj is true)
 
+
 compare = 1; beta = 50; 
+
 
 value,value0,value1,policy = getPolicy(b,db,rounding,etaL,etaH,I,O,s,I_N,PX_s,R,cost,p_signal,q,
               trial_length,compare,beta)
             
+
 #%%
+
 #plot value and policy at different belief states and timesteps
 i = 0; j = 0
 plt.imshow(value[:-1,:-1,j,i], extent=[0,1,1,0]);
+
 plt.ylabel('belief for signal'); plt.xlabel('belief for postsignal')
 #plt.title('value, t=%d'%(i,)); plt.colorbar(); plt.figure()
 plt.title('value, t=%d,q=%1.2f,cost01=%1.2f,cost11=%1.2f,etaL=%1.1f,etaH=%1.1f'%(i,
@@ -347,10 +356,12 @@ plt.colorbar(); plt.figure()
 cmap = matplotlib.cm.get_cmap('viridis', 2)
 norm = matplotlib.colors.BoundaryNorm(np.arange(0, 1, 1), cmap.N)
 plt.ylabel('belief for signal'); plt.xlabel('belief for postsignal')
-plt.title('policy, IS=%d, t=%d'%(j,i))
+
+
 
 plt.title('policy, t=%d,q=%1.2f,cost01=%1.2f,cost11=%1.2f,etaL=%1.1f,etaH=%1.1f'%(i,
             q,c01,c11,etaL,etaH)); 
+
 
 mat = plt.imshow(policy[:-1,:-1,j,i],cmap=cmap,vmin =-0.5,vmax = 1.5, extent=[0,1,1,0])
 cbar=plt.colorbar(mat,ticks=np.linspace(0,1,2)); 
@@ -499,7 +510,7 @@ def generate_responseDiscretePolicy(trial,posterior):
     return inferred_state,response, hit, miss, cr, fa  
 
 #%%
-#use the function to getPolicy
+
 db = 0.01
 b = np.arange(0.0,1.+2*db,db) #discrete belief space use for b0,b1 and b2
 rounding = 2;
@@ -566,6 +577,7 @@ ax[1].legend(bbox_to_anchor=(1.05, 1), loc='upper left')
 
 
 #%%
+
 #run multiple trials
 
 db = 0.01
@@ -778,15 +790,20 @@ for a1 in range(len(arr1)):
 
 #parameters:
 trial_length = 10;
-p_signal = 0.5; q = 0.05
+
+p_signal = 0.5; q = 0.3
+
 etaL = 0.6; etaH = 0.9
 signal_length_type = 0; signal_length = 10
 db = 0.01
 b = np.arange(0.0,1.+2*db,db) #discrete belief space use for b0,b1 and b2
 rounding = 2;
 b = np.round(b,rounding)
+
 c01=0.04; c11 = 0.02
+
 cost = np.array([[0.0,0.0],[c01,c11]])
+
 compare = 1; beta = 50;  #use softmax with beta
 
 nTrials = 3000
