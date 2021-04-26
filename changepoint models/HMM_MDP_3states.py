@@ -518,7 +518,7 @@ c10 = 0.01; c11 = 0.02
 #magnitude of costs on going from i to j internal states
 cost = np.array([[c00,c01],[c10,c11]])
 p_signal = 0.5; q = 0.1
-trial_length = 10#trial length
+trial_length = 25#trial length
 
 I = np.array([0,1]) #internal state space : choose low or high eta levels
 O = np.array([0,1]) #observation space: 0/1
@@ -628,23 +628,54 @@ plt.xlabel('time'); plt.title('Avg runs--non-signal trials, etaH=%1.2f, etaL=%1.
 
 #%%
 #run multiple trials
+
+db = 0.01
+b = np.arange(0.0,1.+2*db,db) #discrete belief space use for b0,b1 and b2
+rounding = 2;
+b = np.round(b,rounding)
+
+etaL = 0.6; etaH = 0.9 #two levels of eta for the two internal states
+
+c00 = 0.00; c01 = 0.04; 
+c10 = 0.01; c11 = 0.02
+#magnitude of costs on going from i to j internal states
+cost = np.array([[c00,c01],[c10,c11]])
+p_signal = 0.5; q = 0.4
+trial_length = 10#trial length
+
+I = np.array([0,1]) #internal state space : choose low or high eta levels
+O = np.array([0,1]) #observation space: 0/1
+s = np.array([0,1,2]) #environmental state space
+I_N = np.array([0,1]) #states to choose at N (H0 or H1) 
+PX_s = np.array([[[etaL,1-etaL,etaL],[1-etaL,etaL,1-etaL]],[[etaH,1-etaH,etaH],[1-etaH,etaH,1-etaH]]])
+R = np.array([[1,0],[0,1]]) 
+#R00,R01,R10,R11 (Rij = rewards on choosing Hi when Hj is true)
+
+compare = 1; beta = 50; 
+
+
 nTrials = 2000
 posteriorTrials = np.full((nTrials,trial_length+1,3),0.0)
 actionTrials = np.full((nTrials,trial_length),0.0)
 trialType = np.full((nTrials),0.0)
 signalTrial =  np.full((nTrials,trial_length),0.0) #underlying signal
 
-p_signalArr = [0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0]
-avgAction1 = np.full((len(p_signalArr),1),0.0)
-stdAction1 = np.full((len(p_signalArr),1),0.0)
+signal_length_type = 0; signal_length = 1
+initial_IS = 0
 
-for a in range(len(p_signalArr)):
-    p_signal = p_signalArr[a]
+
+c11Arr = [0.01,0.015,0.02,0.025,0.03]
+avgAction1 = np.full((len(c11Arr),1),0.0)
+stdAction1 = np.full((len(c11Arr),1),0.0)
+
+for a in range(len(c11Arr)):
+    c11= c11Arr[a]
+    cost = np.array([[c00,c01],[c10,c11]])
     value,value0,value1,policy = getPolicy(b,db,rounding,etaL,etaH,I,O,s,I_N,PX_s,R,cost,p_signal,q,
           trial_length,compare,beta)
     
     for nT in range(nTrials):
-        trial, trial_signal = generate_trialPolicy(trial_length, p_signal, q,
+        trial, trial_signal = generate_trialPolicy(trial_length, 0.5, q,
                                  signal_length_type,signal_length)
         observation, posterior, internalState, action = inferenceDiscretePolicy(trial,trial_length,p_signal,etaL,etaH,
                                     value0,value1,cost,b,db,beta,rounding,initial_IS)
@@ -658,11 +689,11 @@ for a in range(len(p_signalArr)):
     avgAction1[a] = np.mean(numberAction1); stdAction1[a] = np.std(numberAction1)
 
 #%%
-plt.plot(p_signalArr,avgAction1)
-plt.fill_between(p_signalArr, avgAction1[:,0]-stdAction1[:,0], 
+plt.plot(c11Arr,avgAction1)
+plt.fill_between(c11Arr, avgAction1[:,0]-stdAction1[:,0], 
                  avgAction1[:,0]+stdAction1[:,0],  alpha = 0.2)
-plt.ylabel('Avg rate of choosing H'); plt.xlabel('p_signal')
-plt.title('N=%d,etaL=%1.2f,etaH=%1.2f'%(trial_length,etaL,etaH))
+plt.ylabel('Avg rate of choosing H'); plt.xlabel('(c01,c11)')
+plt.title('N=%d,q=%1.2f,c00=%1.2f,c01=%1.2f'%(trial_length,q,c00,c10))
 
 #%%
 #looking at performance at different q and trial length
@@ -670,7 +701,7 @@ plt.title('N=%d,etaL=%1.2f,etaH=%1.2f'%(trial_length,etaL,etaH))
 #parameters:
 trial_length = 10;
 
-p_signal = 0.5; q = 0.3
+p_signal = 0.5; q = 0.2
 
 etaL = 0.6; etaH = 0.9
 signal_length_type = 0; signal_length = 10
@@ -680,19 +711,19 @@ rounding = 2;
 b = np.round(b,rounding)
 
 
-c01=0.05; c11 = 0.01
+c01=0.04; c11 = 0.02
 cost = np.array([[0.0,0.0],[c01,c11]])
 
 compare = 1; beta = 50;  #use softmax with beta
 
 
-nTrials = 3000
+nTrials = 2000
 signal_length_type = 0; signal_length = 1
 initial_IS = 0
 
-trial_lengthArr = [100] #1,5,10,25,50,75,100,125
+trial_lengthArr = [10] #1,5,10,25,50,75,100,125
 #qArr = [0.01,0.2,0.5,0.7] #0.01,0.2,0.5,0.7
-cArr =[0.01,0.02,0.03,0.04,0.05,0.06, 0.07,0.08]
+cArr =[0.01,0.02,0.03,0.04,0.05,0.06]
 
 trialTypeRates = np.full((len(cArr),len(trial_lengthArr),4),np.nan)
 
@@ -779,7 +810,7 @@ for l in range(len(trial_lengthArr)):
     a = trialTypeRates[:,l,0]/(trialTypeRates[:,l,0]+trialTypeRates[:,l,1])
     plt.plot(qArr,a, marker = 'o')
 
-plt.xlabel('c01')
+plt.xlabel('c11')
 plt.ylabel('hit rates');
 plt.title('etaH=%1.2f, etaL=%1.2f, trial_length=%d,c11=%1.2f,q=%1.2f'
                               %(etaH,etaL,trial_lengthArr[l],c11,q)) 
@@ -789,7 +820,7 @@ for l in range(len(trial_lengthArr)):
 
     a = trialTypeRates[:,l,3]/(trialTypeRates[:,l,2]+trialTypeRates[:,l,3])
     plt.plot(qArr,a, marker = 'o')
-plt.xlabel('c01')
+plt.xlabel('c11')
 plt.ylabel('fa rates');
 plt.title('etaH=%1.2f, etaL=%1.2f, trial_length=%d,c11=%1.2f,q=%1.2f'
                               %(etaH,etaL,trial_lengthArr[l],c11,q)) 
