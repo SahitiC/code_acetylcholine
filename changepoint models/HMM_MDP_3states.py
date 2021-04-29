@@ -527,8 +527,10 @@ c00 = 0.00; c01 = 0.04;
 c10 = 0.00; c11 = 0.02
 #magnitude of costs on going from i to j internal states
 cost = np.array([[c00,c01],[c10,c11]])
-p_signal = 0.5; q = 0.7
-trial_length = 5#trial length
+
+
+p_signal = 0.5; q = 0.2
+trial_length = 25#trial length
 
 I = np.array([0,1]) #internal state space : choose low or high eta levels
 O = np.array([0,1]) #observation space: 0/1
@@ -686,6 +688,7 @@ plt.xlabel('time'); plt.title('Avg runs--non-signal trials, etaH=%1.2f, etaL=%1.
 
 #%%
 #count # of times H is chosen
+
 db = 0.01
 b = np.arange(0.0,1.+2*db,db) #discrete belief space use for b0,b1 and b2
 rounding = 2;
@@ -697,8 +700,10 @@ c00 = 0.00; c01 = 0.04;
 c10 = 0.00; c11 = 0.02
 #magnitude of costs on going from i to j internal states
 cost = np.array([[c00,c01],[c10,c11]])
+
 p_signal = 0.5; q = 0.2
 trial_length = 5 #trial length
+
 
 I = np.array([0,1]) #internal state space : choose low or high eta levels
 O = np.array([0,1]) #observation space: 0/1
@@ -716,6 +721,7 @@ posteriorTrials = np.full((nTrials,trial_length+1,3),0.0)
 actionTrials = np.full((nTrials,trial_length),0.0)
 trialType = np.full((nTrials),0.0)
 signalTrial =  np.full((nTrials,trial_length),0.0) #underlying signal
+
 
 signal_length_type = 0; signal_length = 5
 signal_start_type= 0; signal_start=4;
@@ -813,6 +819,7 @@ plt.ylim(0,0.16)
 
     
 
+
 #%%
 #looking at performance at ranges of different pairs of parameters
 
@@ -833,6 +840,7 @@ c10 = 0.00; c11 = 0.02
 cost = np.array([[c00,c01],[c10,c11]])
 trial_length = 10
 compare = 1; beta = 50;  #use softmax with beta
+
 
 nTrials = 2000
 signal_length_type = 0; signal_length = 5
@@ -951,7 +959,7 @@ for l in range(len(trial_lengthArr)):
     a = trialTypeRates[:,l,0]/(trialTypeRates[:,l,0]+trialTypeRates[:,l,1])
     plt.plot(qArr,a, marker = 'o')
 
-plt.xlabel('c01')
+plt.xlabel('c11')
 plt.ylabel('hit rates');
 plt.title('etaH=%1.2f, etaL=%1.2f, trial_length=%d,c11=%1.2f,q=%1.2f'
                               %(etaH,etaL,trial_lengthArr[l],c11,q)) 
@@ -961,7 +969,7 @@ for l in range(len(trial_lengthArr)):
 
     a = trialTypeRates[:,l,3]/(trialTypeRates[:,l,2]+trialTypeRates[:,l,3])
     plt.plot(qArr,a, marker = 'o')
-plt.xlabel('c01')
+plt.xlabel('c11')
 plt.ylabel('fa rates');
 plt.title('etaH=%1.2f, etaL=%1.2f, trial_length=%d,c11=%1.2f,q=%1.2f'
                               %(etaH,etaL,trial_lengthArr[l],c11,q)) 
