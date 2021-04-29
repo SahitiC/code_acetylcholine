@@ -744,30 +744,55 @@ for a in range(len(c11Arr)):
     avgAction1[a] = np.mean(numberAction1); stdAction1[a] = np.std(numberAction1)
 
 #%%
-plt.plot(c11Arr,avgAction1)
-plt.fill_between(c11Arr, avgAction1[:,0]-stdAction1[:,0], 
-                 avgAction1[:,0]+stdAction1[:,0],  alpha = 0.2)
-plt.ylabel('Avg rate of choosing H'); plt.xlabel('(c01,c11)')
-plt.title('N=%d,q=%1.2f,c00=%1.2f,c01=%1.2f'%(trial_length,q,c00,c10))
+db = 0.01
+b = np.arange(0.0,1.+2*db,db) #discrete belief space use for b0,b1 and b2
+rounding = 2;
+b = np.round(b,rounding)
+
+etaL = 0.6; etaH = 0.9 #two levels of eta for the two internal states
+
+c00 = 0.00; c01 = 0.04;
+c10 = 0.01; c11 = 0.02
+#magnitude of costs on going from i to j internal states
+cost = np.array([[c00,c01],[c10,c11]])
+p_signal = 0.5; q = 0.2
+trial_length = 10 #trial length
+
+I = np.array([0,1]) #internal state space : choose low or high eta levels
+O = np.array([0,1]) #observation space: 0/1
+s = np.array([0,1,2]) #environmental state space
+I_N = np.array([0,1]) #states to choose at N (H0 or H1)
+PX_s = np.array([[[etaL,1-etaL,etaL],[1-etaL,etaL,1-etaL]],[[etaH,1-etaH,etaH],[1-etaH,etaH,1-etaH]]])
+R = np.array([[1,0],[0,1]])
+#R00,R01,R10,R11 (Rij = rewards on choosing Hi when Hj is true)
+
+compare = 1; beta = 50;
+
+
+nTrials = 2000
+posteriorTrials = np.full((nTrials,trial_length+1,3),0.0)
+actionTrials = np.full((nTrials,trial_length),0.0)
+trialType = np.full((nTrials),0.0)
+signalTrial =  np.full((nTrials,trial_length),0.0) #underlying signal
 
 signal_length_type = 1; signal_length = 5
 signal_start_type=1; signal_start=4;
 initial_IS = 0
 
-cArr = [0.01,0.02,0.03,0.04,0.05,0.06,0.07]#0.0,0.2,0.4,0.6,0.8,1.0
+p_signalArr = [0.1,0.3,0.5,0.7,0.9]#0.0,0.2,0.4,0.6,0.8,1.0
 qArr = [0.1,0.3,0.5,0.7,0.9]#0.1,0.3,0.5,0.7,0.9
-avgHSignal = np.full((len(cArr),len(qArr)),0.0)
-stdHSignal = np.full((len(cArr),len(qArr)),0.0)
-avgHNonsignal = np.full((len(cArr),len(qArr)),0.0)
-stdHNonsignal = np.full((len(cArr),len(qArr)),0.0)
-avgH = np.full((len(cArr),len(qArr)),0.0)
-stdH = np.full((len(cArr),len(qArr)),0.0)
+avgHSignal = np.full((len(p_signalArr),len(qArr)),0.0)
+stdHSignal = np.full((len(p_signalArr),len(qArr)),0.0)
+avgHNonsignal = np.full((len(p_signalArr),len(qArr)),0.0)
+stdHNonsignal = np.full((len(p_signalArr),len(qArr)),0.0)
+avgH = np.full((len(p_signalArr),len(qArr)),0.0)
+stdH = np.full((len(p_signalArr),len(qArr)),0.0)
 
 axis = 1; div = trial_length
-for a1 in range(len(cArr)):
-    c01= cArr[a1]
+for a1 in range(len(p_signalArr)):
+    p_signal= p_signalArr[a1]
     #PX_s = np.array([[[etaL,1-etaL,etaL],[1-etaL,etaL,1-etaL]],[[etaH,1-etaH,etaH],[1-etaH,etaH,1-etaH]]])
-    cost = np.array([[c00,c01],[c10,c11]])
+    #cost = np.array([[c00,c01],[c10,c11]])
     for a2 in range(len(qArr)):
         q = qArr[a2]
         value,value0,value1,policy = getPolicy(b,db,rounding,etaL,etaH,I,O,s,I_N,PX_s,R,cost,p_signal,q,
@@ -798,7 +823,7 @@ for a1 in range(len(cArr)):
         avgH[a1,a2] = np.mean(numberH); stdH[a1,a2] = np.std(numberH)
 
 #%%
-arr1= cArr
+arr1= p_signalArr
 arr2 = qArr
 fig1,ax1 = plt.subplots()
 fig2,ax2 = plt.subplots()
