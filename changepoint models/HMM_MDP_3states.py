@@ -838,7 +838,7 @@ c00 = 0.00; c01 = 0.04;
 c10 = 0.00; c11 = 0.02
 #magnitude of costs on going from i to j internal states
 cost = np.array([[c00,c01],[c10,c11]])
-trial_length = 10
+trial_length = 25
 compare = 1; beta = 50;  #use softmax with beta
 
 
